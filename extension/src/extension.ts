@@ -7,6 +7,7 @@ import { clearIndexCommand } from './commands/clear.js';
 import { graphStatsCommand } from './commands/stats.js';
 import { reindexCommand } from './commands/reindex.js';
 import { planCommand } from './commands/plan.js';
+import { workCommand } from './commands/work.js';
 import { indexFile } from './core/indexer.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
@@ -18,11 +19,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Register commands
   const planCommandReg = vscode.commands.registerCommand('nanodex.plan', planCommand);
-
-  const workCommand = vscode.commands.registerCommand('nanodex.work', async () => {
-    vscode.window.showInformationMessage('Nanodex: Work command (not yet implemented)');
-  });
-
+  const workCommandReg = vscode.commands.registerCommand('nanodex.work', workCommand);
   const indexCommand = vscode.commands.registerCommand('nanodex.index', indexWorkspaceCommand);
   const clearCommand = vscode.commands.registerCommand('nanodex.clear', clearIndexCommand);
   const statsCommand = vscode.commands.registerCommand('nanodex.stats', graphStatsCommand);
@@ -30,7 +27,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     planCommandReg,
-    workCommand,
+    workCommandReg,
     indexCommand,
     clearCommand,
     statsCommand,
