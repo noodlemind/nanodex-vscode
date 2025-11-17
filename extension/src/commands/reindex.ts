@@ -1,18 +1,25 @@
 /**
- * Index Workspace command implementation
+ * Reindex Changed Files command implementation
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { initializeGraphDatabase } from '../core/graph.js';
+import Database from 'better-sqlite3';
 import { indexFile, getSourceFiles } from '../core/indexer.js';
 
-export async function indexWorkspaceCommand(): Promise<void> {
+export async function reindexCommand(): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
   if (!workspaceFolder) {
     vscode.window.showErrorMessage('No workspace folder open');
+    return;
+  }
+
+  const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
+
+  if (!fs.existsSync(dbPath)) {
+    vscode.window.showInformationMessage('No index found. Run "Nanodex: Index Workspace" first.');
     return;
   }
 
@@ -29,27 +36,13 @@ export async function indexWorkspaceCommand(): Promise<void> {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Indexing workspace',
+        title: 'Reindexing workspace',
         cancellable: true
       },
       async (progress, token) => {
-        progress.report({ message: 'Creating .nanodex directory...' });
-
-        // Create .nanodex directory if it doesn't exist
-        const nanodexDir = path.join(workspaceFolder.uri.fsPath, '.nanodex');
-        if (!fs.existsSync(nanodexDir)) {
-          fs.mkdirSync(nanodexDir, { recursive: true });
-        }
-
-        progress.report({ message: 'Initializing graph database...' });
-
-        // Initialize the database
-        const dbPath = path.join(nanodexDir, 'graph.sqlite');
-        const db = initializeGraphDatabase(dbPath);
+        const db = new Database(dbPath);
 
         try {
-          progress.report({ message: 'Finding source files...' });
-
           // Get all source files
           const files = getSourceFiles(workspaceFolder.uri.fsPath, exclude);
 
@@ -78,15 +71,14 @@ export async function indexWorkspaceCommand(): Promise<void> {
 
           progress.report({ message: 'Complete!' });
         } finally {
-          // Close the database
           db.close();
         }
       }
     );
 
-    vscode.window.showInformationMessage('Workspace indexed successfully');
+    vscode.window.showInformationMessage('Workspace reindexed successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`Failed to index workspace: ${errorMessage}`);
+    vscode.window.showErrorMessage(`Failed to reindex workspace: ${errorMessage}`);
   }
 }

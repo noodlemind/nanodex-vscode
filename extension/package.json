@@ -42,6 +42,11 @@
         "category": "Nanodex"
       },
       {
+        "command": "nanodex.reindex",
+        "title": "Nanodex: Reindex Changed Files",
+        "category": "Nanodex"
+      },
+      {
         "command": "nanodex.clear",
         "title": "Nanodex: Clear Index",
         "category": "Nanodex"
