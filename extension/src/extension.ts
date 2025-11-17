@@ -235,7 +235,17 @@ async function processPendingIndexes(workspaceRoot: string, dbPath: string): Pro
 export async function deactivate(): Promise<void> {
   console.log('nanodex extension is now deactivating');
 
-  // Process any pending indexes before shutdown
+  // Clear timer FIRST to prevent new additions during shutdown
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
+
+  // Dispose file watcher BEFORE processing pending items
+  if (fileWatcher) {
+    fileWatcher.dispose();
+  }
+
+  // Now safely process any pending indexes
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (workspaceFolder && pendingIndexes.size > 0) {
     const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
@@ -246,14 +256,6 @@ export async function deactivate(): Promise<void> {
         console.error('Failed to process pending indexes during deactivation:', error);
       }
     }
-  }
-
-  if (debounceTimer) {
-    clearTimeout(debounceTimer);
-  }
-
-  if (fileWatcher) {
-    fileWatcher.dispose();
   }
 
   // Dispose status bar item

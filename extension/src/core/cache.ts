@@ -60,6 +60,7 @@ export class LRUCache<K, V> {
     }
 
     // Move to end (most recently used)
+    // Safe: has() check above guarantees key exists
     const value = this.cache.get(key)!;
     this.cache.delete(key);
     this.cache.set(key, value);

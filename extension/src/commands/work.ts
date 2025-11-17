@@ -127,12 +127,21 @@ function parseFileEdits(response: string, workspaceRoot: string): FileEdit[] {
   const edits: FileEdit[] = [];
 
   // Look for file blocks with size limit to prevent catastrophic backtracking
+  const maxBlockSize = 1024 * 1024; // 1MB limit
   const fileBlockRegex = /```([^\n]+)\n([\s\S]{0,1048576}?)```/g;
   let match;
 
   while ((match = fileBlockRegex.exec(response)) !== null) {
     const header = match[1].trim();
     const content = match[2];
+
+    // Warn if content may be truncated by regex limit
+    if (content.length >= maxBlockSize - 10) {
+      console.warn(
+        `Warning: File block for "${header}" may be truncated (near ${maxBlockSize} byte limit). ` +
+        `Content length: ${content.length} bytes`
+      );
+    }
 
     // Parse header for file path and operation
     let filePath: string;
