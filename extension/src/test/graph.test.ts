@@ -32,20 +32,10 @@ suite('Graph System Tests', () => {
       db.close();
     }
     if (fs.existsSync(testDbPath)) {
-      fs.unlinkSync(testDbPath);
-      // Clean up WAL and SHM files
-      const walPath = `${testDbPath}-wal`;
-      const shmPath = `${testDbPath}-shm`;
-      if (fs.existsSync(walPath)) {
-        fs.unlinkSync(walPath);
-      }
-      if (fs.existsSync(shmPath)) {
-        fs.unlinkSync(shmPath);
-      }
-      // Remove temp directory
+      // Remove temp directory and all contents
       const tempDir = path.dirname(testDbPath);
       if (fs.existsSync(tempDir)) {
-        fs.rmdirSync(tempDir);
+        fs.rmSync(tempDir, { recursive: true, force: true });
       }
     }
   });

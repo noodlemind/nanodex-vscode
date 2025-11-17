@@ -96,18 +96,21 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
       return;
     }
 
+    let db: Database.Database | undefined;
     try {
-      const db = new Database(dbPath);
+      db = new Database(dbPath);
       const relativePath = path.relative(workspaceFolder.uri.fsPath, uri.fsPath);
       const moduleId = `module:${relativePath}`;
 
       // Delete module and its symbols
       db.prepare('DELETE FROM nodes WHERE id = ?').run(moduleId);
       db.prepare('DELETE FROM nodes WHERE id LIKE ?').run(`symbol:${relativePath}:%`);
-
-      db.close();
     } catch (error) {
       console.error('Failed to handle file deletion:', error);
+    } finally {
+      if (db) {
+        db.close();
+      }
     }
   });
 
@@ -132,8 +135,9 @@ async function processPendingIndexes(workspaceRoot: string, dbPath: string): Pro
   const files = Array.from(pendingIndexes);
   pendingIndexes.clear();
 
+  let db: Database.Database | undefined;
   try {
-    const db = new Database(dbPath);
+    db = new Database(dbPath);
 
     for (const file of files) {
       try {
@@ -142,15 +146,30 @@ async function processPendingIndexes(workspaceRoot: string, dbPath: string): Pro
         console.error(`Failed to index ${file}:`, error);
       }
     }
-
-    db.close();
   } catch (error) {
     console.error('Failed to process pending indexes:', error);
+  } finally {
+    if (db) {
+      db.close();
+    }
   }
 }
 
-export function deactivate(): void {
-  console.log('nanodex extension is now deactivated');
+export async function deactivate(): Promise<void> {
+  console.log('nanodex extension is now deactivating');
+
+  // Process any pending indexes before shutdown
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (workspaceFolder && pendingIndexes.size > 0) {
+    const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
+    if (fs.existsSync(dbPath)) {
+      try {
+        await processPendingIndexes(workspaceFolder.uri.fsPath, dbPath);
+      } catch (error) {
+        console.error('Failed to process pending indexes during deactivation:', error);
+      }
+    }
+  }
 
   if (debounceTimer) {
     clearTimeout(debounceTimer);
@@ -159,4 +178,6 @@ export function deactivate(): void {
   if (fileWatcher) {
     fileWatcher.dispose();
   }
+
+  console.log('nanodex extension deactivated');
 }

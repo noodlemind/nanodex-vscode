@@ -3,6 +3,7 @@
  */
 
 import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import Database from 'better-sqlite3';
@@ -132,8 +133,8 @@ export async function indexFile(
   workspaceRoot: string,
   db: Database.Database
 ): Promise<void> {
-  // Read file content
-  const content = fs.readFileSync(filePath, 'utf-8');
+  // Read file content asynchronously
+  const content = await fsp.readFile(filePath, 'utf-8');
   const contentHash = calculateContentHash(content);
 
   // Get relative path for node ID
@@ -171,8 +172,8 @@ export async function indexFile(
       }
     });
 
-    // Delete old symbol nodes for this module
-    db.prepare('DELETE FROM nodes WHERE id LIKE ?').run(`symbol:${relativePath}:%`);
+    // Delete old symbol nodes for this module (use type filter for safety)
+    db.prepare('DELETE FROM nodes WHERE type = ? AND id LIKE ?').run(NodeType.Symbol, `symbol:${relativePath}:%`);
 
     // Insert symbol nodes
     for (const symbol of parseResult.symbols) {
