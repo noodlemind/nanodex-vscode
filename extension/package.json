@@ -57,6 +57,32 @@
         "category": "Nanodex"
       }
     ],
+    "chatParticipants": [
+      {
+        "id": "nanodex",
+        "name": "nanodex",
+        "description": "AI assistant with knowledge graph integration for code understanding and implementation",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "plan",
+            "description": "Create an implementation plan"
+          },
+          {
+            "name": "work",
+            "description": "Start working on an issue"
+          },
+          {
+            "name": "explain",
+            "description": "Explain code with graph context"
+          },
+          {
+            "name": "issues",
+            "description": "List all issues"
+          }
+        ]
+      }
+    ],
     "configuration": {
       "title": "nanodex",
       "properties": {

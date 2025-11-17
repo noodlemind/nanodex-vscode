@@ -8,6 +8,7 @@ import { graphStatsCommand } from './commands/stats.js';
 import { reindexCommand } from './commands/reindex.js';
 import { planCommand } from './commands/plan.js';
 import { workCommand } from './commands/work.js';
+import { registerChatParticipant } from './chat/participant.js';
 import { indexFile } from './core/indexer.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
@@ -33,6 +34,9 @@ export function activate(context: vscode.ExtensionContext): void {
     statsCommand,
     reindexCommandReg
   );
+
+  // Register chat participant
+  registerChatParticipant(context);
 
   // Setup file watchers for automatic reindexing
   setupFileWatchers(context);
