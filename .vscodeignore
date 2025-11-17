@@ -1,0 +1,34 @@
+# Source files
+extension/src/**
+extension/test/**
+extension/tsconfig.json
+
+# Build artifacts
+extension/out/test/**
+.vscode-test/**
+
+# Configuration
+.vscode/**
+.gitignore
+.eslintrc.json
+tsconfig.json
+pnpm-workspace.yaml
+
+# Documentation (keep LICENSE and README)
+CLAUDE.md
+AGENTS.md
+BEST_PRACTICES_RESEARCH.md
+
+# Development files
+*.map
+*.ts
+**/*.map
+**/*.ts
+!extension/dist/**/*.js
+
+# Node
+node_modules/
+.npm/
+
+# Logs
+*.log
