@@ -1,0 +1,208 @@
+id: nanodex.flow.review
+sourceFile: "commands/review.md"
+intent: "Perform exhaustive code reviews using multi-agent analysis and worktrees"
+inputs:
+  - name: target
+    required: false
+
+context:
+  inject:
+    - name: relevant_nodes
+      query: "relevant_nodes(goal='{target}', max=12)"
+
+steps:
+  - name: "Worktree Creation and Branch Checkout"
+    agentId: "nanodex.specialist.repo-research-analyst"
+    prompt: |
+      MUST create worktree FIRST to enable local code analysis. No exceptions.
+
+      First, I need to determine the review target type and set up the worktree.
+      This enables all subsequent agents to analyze actual code, not just diffs.
+
+      #### Immediate Actions:
+
+      - [ ] Determine review type: PR number (numeric), GitHub URL, file path (.md), or empty (latest PR)
+      - [ ] Create worktree directory structure at `$git_root/.worktrees/reviews/pr-$identifier`
+      - [ ] Check out PR branch in isolated worktree using `gh pr checkout`
+      - [ ] Navigate to worktree - ALL subsequent analysis happens here
+
+      - Fetch PR metadata using `gh pr view --json` for title, body, files, linked issues
+      - Clone PR branch into worktree with full history `gh pr checkout $identifier`
+      - Set up language-specific analysis tools
+      - Prepare security scanning environment
+
+      Ensure that the worktree is set up correctly and that the PR is checked out. ONLY then proceed to the next step.
+
+  - name: "Project Type Detection"
+    agentId: "nanodex.specialist.framework-docs-researcher"
+    prompt: |
+      Determine the project type by analyzing the codebase structure and files.
+      This will inform which language-specific reviewers to use.
+
+      Check for these indicators to determine project type:
+
+      **Rails Project**:
+      - `Gemfile` with `rails` gem
+      - `config/application.rb`
+      - `app/` directory structure
+
+      **TypeScript Project**:
+      - `tsconfig.json`
+      - `package.json` with TypeScript dependencies
+      - `.ts` or `.tsx` files
+
+      **Python Project**:
+      - `requirements.txt` or `pyproject.toml`
+      - `.py` files
+      - `setup.py` or `poetry.lock`
+
+      **Java Project**:
+      - `pom.xml` (Maven)
+      - `build.gradle` or `build.gradle.kts` (Gradle)
+      - `src/main/java/` directory structure
+      - `.java` files
+
+      Based on detection, set appropriate reviewers for parallel execution.
+
+  - name: "Parallel Agent Reviews"
+    agentId: "nanodex.specialist.architecture-strategist"
+    prompt: |
+      Run ALL or most of these agents at the same time, adjusting language-specific reviewers based on project type:
+
+      **Language-Specific Reviewers (choose based on project type)**:
+
+      For Rails projects:
+      1. Task senior-rails-reviewer(PR content)
+      2. Task dhh-rails-reviewer(PR title)
+      3. If turbo is used: Task rails-turbo-expert(PR content)
+
+      For TypeScript projects:
+      1. Task senior-typescript-reviewer(PR content)
+
+      For Python projects:
+      1. Task senior-python-reviewer(PR content)
+
+      For Java projects:
+      1. Task senior-java-reviewer(PR content)
+
+      **Universal Reviewers (run for all project types)**:
+      4. Task git-history-analyzer(PR content)
+      5. Task dependency-detective(PR content)
+      6. Task pattern-recognition-specialist(PR content)
+      7. Task architecture-strategist(PR content)
+      8. Task code-philosopher(PR content)
+      9. Task security-sentinel(PR content)
+      10. Task performance-oracle(PR content)
+      11. Task devops-harmony-analyst(PR content)
+      12. Task data-integrity-guardian(PR content)
+
+  - name: "Stakeholder Perspective Analysis"
+    agentId: "nanodex.specialist.architecture-strategist"
+    prompt: |
+      ULTRA-THINK: Put yourself in each stakeholder's shoes. What matters to them? What are their pain points?
+
+      1. **Developer Perspective**
+
+         - How easy is this to understand and modify?
+         - Are the APIs intuitive?
+         - Is debugging straightforward?
+         - Can I test this easily?
+
+      2. **Operations Perspective**
+
+         - How do I deploy this safely?
+         - What metrics and logs are available?
+         - How do I troubleshoot issues?
+         - What are the resource requirements?
+
+      3. **End User Perspective**
+
+         - Is the feature intuitive?
+         - Are error messages helpful?
+         - Is performance acceptable?
+         - Does it solve my problem?
+
+      4. **Security Team Perspective**
+
+         - What's the attack surface?
+         - Are there compliance requirements?
+         - How is data protected?
+         - What are the audit capabilities?
+
+      5. **Business Perspective**
+         - What's the ROI?
+         - Are there legal/compliance risks?
+         - How does this affect time-to-market?
+         - What's the total cost of ownership?
+
+  - name: "Scenario Exploration"
+    agentId: "nanodex.specialist.security-sentinel"
+    prompt: |
+      ULTRA-THINK: Explore edge cases and failure scenarios. What could go wrong? How does the system behave under stress?
+
+      - [ ] **Happy Path**: Normal operation with valid inputs
+      - [ ] **Invalid Inputs**: Null, empty, malformed data
+      - [ ] **Boundary Conditions**: Min/max values, empty collections
+      - [ ] **Concurrent Access**: Race conditions, deadlocks
+      - [ ] **Scale Testing**: 10x, 100x, 1000x normal load
+      - [ ] **Network Issues**: Timeouts, partial failures
+      - [ ] **Resource Exhaustion**: Memory, disk, connections
+      - [ ] **Security Attacks**: Injection, overflow, DoS
+      - [ ] **Data Corruption**: Partial writes, inconsistency
+      - [ ] **Cascading Failures**: Downstream service issues
+
+  - name: "Simplification Review"
+    agentId: "nanodex.specialist.code-simplicity-reviewer"
+    prompt: |
+      Run the Task code-simplicity-reviewer() to see if we can simplify the code.
+
+  - name: "Findings Synthesis and Todo Creation"
+    agentId: "nanodex.specialist.repo-research-analyst"
+    prompt: |
+      All findings MUST be converted to actionable todos in the CLI todo system
+
+      #### Step 1: Synthesize All Findings
+
+      Consolidate all agent reports into a categorized list of findings.
+      Remove duplicates, prioritize by severity and impact.
+
+      - [ ] Collect findings from all parallel agents
+      - [ ] Categorize by type: security, performance, architecture, quality, etc.
+      - [ ] Assign severity levels: 🔴 CRITICAL (P1), 🟡 IMPORTANT (P2), 🔵 NICE-TO-HAVE (P3)
+      - [ ] Remove duplicate or overlapping findings
+      - [ ] Estimate effort for each finding (Small/Medium/Large)
+
+      #### Step 2: Present Findings for Triage
+
+      For EACH finding, present in this format:
+
+      ```
+      ---
+      Finding #X: [Brief Title]
+
+      Severity: 🔴 P1 / 🟡 P2 / 🔵 P3
+
+      Category: [Security/Performance/Architecture/Quality/etc.]
+
+      Description:
+      [Detailed explanation of the issue or improvement]
+
+      Location: [file_path:line_number]
+
+      Problem:
+      [What's wrong or could be better]
+
+      Impact:
+      [Why this matters, what could happen]
+
+      Proposed Solution:
+      [How to fix it]
+
+      Effort: Small/Medium/Large
+
+      ---
+      Do you want to add this to the todo list?
+      1. yes - create todo file
+      2. next - skip this finding
+      3. custom - modify before creating
+      ```

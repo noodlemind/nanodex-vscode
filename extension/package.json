@@ -1,0 +1,224 @@
+{
+  "name": "nanodex",
+  "displayName": "nanodex",
+  "description": "Structured context + compounding flows for predictable coding agents",
+  "version": "0.1.0",
+  "publisher": "nanodex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nanodex/nanodex-vscode.git"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.105.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "AI",
+    "Machine Learning",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "code generation",
+    "knowledge graph",
+    "context",
+    "copilot"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "nanodex.plan",
+        "title": "Nanodex: Plan",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.work",
+        "title": "Nanodex: Work",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.index",
+        "title": "Nanodex: Index Workspace",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.reindex",
+        "title": "Nanodex: Reindex Changed Files",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.clear",
+        "title": "Nanodex: Clear Index",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.stats",
+        "title": "Nanodex: Graph Stats",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.selectModel",
+        "title": "Nanodex: Select Model",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.selectChatStrategy",
+        "title": "Nanodex: Select Chat Strategy",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.showModelStatus",
+        "title": "Nanodex: Show Model Status",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.optimize",
+        "title": "Nanodex: Optimize Database",
+        "category": "Nanodex"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "nanodex",
+        "name": "nanodex",
+        "description": "AI assistant with knowledge graph integration for code understanding and implementation",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "plan",
+            "description": "Create an implementation plan"
+          },
+          {
+            "name": "work",
+            "description": "Start working on an issue"
+          },
+          {
+            "name": "explain",
+            "description": "Explain code with graph context"
+          },
+          {
+            "name": "issues",
+            "description": "List all issues"
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "nanodex",
+      "properties": {
+        "nanodex.defaultModel": {
+          "type": "string",
+          "default": "copilot/gpt-4o",
+          "enum": [
+            "copilot/gpt-4o",
+            "copilot/gpt-4o-mini",
+            "copilot/claude-3.5-sonnet",
+            "copilot/o1",
+            "copilot/o1-mini"
+          ],
+          "enumDescriptions": [
+            "GPT-4o - Best balance of quality and speed",
+            "GPT-4o Mini - Faster, cheaper for simple tasks",
+            "Claude 3.5 Sonnet - Anthropic's latest model",
+            "o1 - Advanced reasoning model",
+            "o1 Mini - Efficient reasoning model"
+          ],
+          "description": "Default model for Plan/Work commands"
+        },
+        "nanodex.chat.modelStrategy": {
+          "type": "string",
+          "default": "useChatModel",
+          "enum": [
+            "useChatModel",
+            "useConfiguredModel"
+          ],
+          "enumDescriptions": [
+            "Use the active Chat panel model",
+            "Use the configured default model"
+          ],
+          "description": "Model selection strategy for chat participant"
+        },
+        "nanodex.index.auto": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic indexing"
+        },
+        "nanodex.index.autoReindexMode": {
+          "type": "string",
+          "default": "onSave",
+          "enum": [
+            "onApply",
+            "onSave",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Reindex after applying workspace edits",
+            "Reindex when files are saved",
+            "Disable automatic reindexing"
+          ],
+          "description": "When to trigger automatic reindexing"
+        },
+        "nanodex.index.exclude": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/out/**",
+            "**/.git/**",
+            "**/.nanodex/**"
+          ],
+          "description": "Glob patterns to exclude from indexing"
+        },
+        "nanodex.index.maxWorkers": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Maximum number of parallel indexing workers"
+        },
+        "nanodex.instructions.files": {
+          "type": "array",
+          "default": [
+            "AGENTS.md",
+            "instructions/**/*.instructions.md",
+            ".nanodex/instructions/**/*.instructions.md"
+          ],
+          "description": "Custom instruction file patterns"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./dist/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/glob": "^8.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.105.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "eslint": "^9.0.0",
+    "glob": "^11.0.0",
+    "mocha": "^10.8.2",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "js-yaml": "^4.1.0"
+  }
+}
