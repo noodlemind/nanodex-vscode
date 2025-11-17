@@ -1,11 +1,20 @@
 /**
  * Language detection and file type registry
+ *
+ * This module provides language detection, metadata management, and file watching
+ * utilities for multi-language workspace indexing support.
+ *
+ * Supported languages: TypeScript, JavaScript, Python, Go, Rust, Java, C#, Ruby, PHP
+ *
+ * @module languages
  */
 
 import * as path from 'path';
 
 /**
- * Supported language types
+ * Supported programming languages for code indexing.
+ *
+ * @enum {string}
  */
 export enum Language {
   TypeScript = 'typescript',
@@ -21,7 +30,9 @@ export enum Language {
 }
 
 /**
- * Language metadata
+ * Metadata describing a programming language's characteristics.
+ *
+ * @interface LanguageMetadata
  */
 interface LanguageMetadata {
   name: string;
@@ -34,7 +45,12 @@ interface LanguageMetadata {
 }
 
 /**
- * Language registry
+ * Centralized registry mapping languages to their metadata.
+ *
+ * Contains configuration for file extensions, comment styles, and indexing support
+ * for each supported language.
+ *
+ * @constant
  */
 const LANGUAGE_REGISTRY: Record<Language, LanguageMetadata> = {
   [Language.TypeScript]: {
@@ -127,12 +143,27 @@ const LANGUAGE_REGISTRY: Record<Language, LanguageMetadata> = {
 };
 
 /**
- * Extension to language mapping cache
+ * Cache mapping file extensions to detected languages for performance.
+ * @internal
  */
 const extensionCache = new Map<string, Language>();
 
 /**
- * Detect language from file path
+ * Detect programming language from file path.
+ *
+ * Uses file extension to determine language. Results are cached for performance.
+ * Handles edge cases like dotfiles and files without extensions correctly.
+ *
+ * @param filePath - Full path to the file
+ * @returns Detected language or Language.Unknown if not supported
+ *
+ * @example
+ * ```typescript
+ * detectLanguage('/path/to/file.ts'); // Language.TypeScript
+ * detectLanguage('/path/to/file.py'); // Language.Python
+ * detectLanguage('/path/to/.gitignore'); // Language.Unknown
+ * detectLanguage('/path/to/Makefile'); // Language.Unknown
+ * ```
  */
 export function detectLanguage(filePath: string): Language {
   // Use path.extname() which handles edge cases correctly
@@ -164,14 +195,33 @@ export function detectLanguage(filePath: string): Language {
 }
 
 /**
- * Get language metadata
+ * Get metadata for a specific language.
+ *
+ * @param language - The language to get metadata for
+ * @returns Language metadata including extensions, comment styles, and indexing support
+ *
+ * @example
+ * ```typescript
+ * const metadata = getLanguageMetadata(Language.TypeScript);
+ * console.log(metadata.extensions); // ['.ts', '.tsx']
+ * console.log(metadata.commentStyle.line); // '//'
+ * ```
  */
 export function getLanguageMetadata(language: Language): LanguageMetadata {
   return LANGUAGE_REGISTRY[language];
 }
 
 /**
- * Check if language supports indexing
+ * Check if a file supports code indexing based on its language.
+ *
+ * @param filePath - Full path to the file
+ * @returns True if the file's language supports indexing
+ *
+ * @example
+ * ```typescript
+ * supportsIndexing('/path/to/app.ts'); // true
+ * supportsIndexing('/path/to/README.md'); // false
+ * ```
  */
 export function supportsIndexing(filePath: string): boolean {
   const language = detectLanguage(filePath);
@@ -179,7 +229,15 @@ export function supportsIndexing(filePath: string): boolean {
 }
 
 /**
- * Get all supported extensions
+ * Get all supported file extensions across all languages.
+ *
+ * @returns Array of file extensions including the leading dot (e.g., ['.ts', '.js', '.py'])
+ *
+ * @example
+ * ```typescript
+ * const extensions = getSupportedExtensions();
+ * // ['.ts', '.tsx', '.js', '.jsx', '.py', ...]
+ * ```
  */
 export function getSupportedExtensions(): string[] {
   const extensions: string[] = [];
@@ -190,12 +248,27 @@ export function getSupportedExtensions(): string[] {
 }
 
 /**
- * Cached file watcher pattern
+ * Cached file watcher pattern to avoid recomputation.
+ * @internal
  */
 let cachedWatcherPattern: string | undefined;
 
 /**
- * Create file watcher glob pattern for all supported languages
+ * Create file watcher glob pattern for all supported languages.
+ *
+ * Returns a glob pattern like `**\/*.{ts,tsx,js,jsx,py,...}` that matches
+ * all files with supported extensions. Result is cached for performance.
+ *
+ * @returns Glob pattern string for VS Code file watcher
+ * @throws {Error} If no supported language extensions are registered
+ *
+ * @example
+ * ```typescript
+ * const pattern = getFileWatcherPattern();
+ * // '**\/*.{ts,tsx,js,jsx,mjs,cjs,py,pyi,go,rs,java,cs,rb,php}'
+ *
+ * const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+ * ```
  */
 export function getFileWatcherPattern(): string {
   // Return cached pattern if available

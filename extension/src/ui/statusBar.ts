@@ -1,17 +1,46 @@
 /**
  * Status Bar UI Component
+ *
+ * This module manages a status bar item that displays the current nanodex model
+ * configuration and provides quick access to model settings.
+ *
+ * @module statusBar
  */
 
 import * as vscode from 'vscode';
 import { formatModelForStatusBar, DEFAULT_MODEL } from '../core/modelUtils.js';
 
-// Priority for status bar placement (higher = more to the left in Right alignment)
+/**
+ * Priority for status bar placement.
+ * Higher values position the item more to the left when using Right alignment.
+ *
+ * @constant
+ */
 const STATUS_BAR_PRIORITY = 100;
 
+/**
+ * The active status bar item instance.
+ * @internal
+ */
 let statusBarItem: vscode.StatusBarItem | undefined;
 
 /**
- * Create and show status bar item
+ * Create and show the nanodex status bar item.
+ *
+ * The status bar item displays the current model configuration and updates
+ * automatically when settings change. Clicking the item opens model configuration.
+ *
+ * This function includes a resource leak guard - if called multiple times,
+ * it will dispose the old instance before creating a new one.
+ *
+ * @param context - Extension context for managing subscriptions
+ *
+ * @example
+ * ```typescript
+ * export function activate(context: vscode.ExtensionContext): void {
+ *   createStatusBarItem(context);
+ * }
+ * ```
  */
 export function createStatusBarItem(context: vscode.ExtensionContext): void {
   // Guard against resource leak - dispose old instance if it exists
@@ -43,7 +72,12 @@ export function createStatusBarItem(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Update status bar item text
+ * Update status bar item text and tooltip based on current configuration.
+ *
+ * Reads the current model configuration and updates the status bar display.
+ * Called automatically when configuration changes.
+ *
+ * @internal
  */
 function updateStatusBarItem(): void {
   if (!statusBarItem) {
@@ -59,7 +93,16 @@ function updateStatusBarItem(): void {
 }
 
 /**
- * Dispose status bar item
+ * Dispose the status bar item and clean up resources.
+ *
+ * Should be called during extension deactivation to properly clean up UI resources.
+ *
+ * @example
+ * ```typescript
+ * export function deactivate(): void {
+ *   disposeStatusBarItem();
+ * }
+ * ```
  */
 export function disposeStatusBarItem(): void {
   statusBarItem?.dispose();
