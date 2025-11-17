@@ -70,6 +70,11 @@
         "command": "nanodex.showModelStatus",
         "title": "Nanodex: Show Model Status",
         "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.optimize",
+        "title": "Nanodex: Optimize Database",
+        "category": "Nanodex"
       }
     ],
     "chatParticipants": [

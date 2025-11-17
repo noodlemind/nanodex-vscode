@@ -12,6 +12,8 @@ import { selectModelCommand, selectChatStrategyCommand, showModelStatusCommand }
 import { registerChatParticipant } from './chat/participant.js';
 import { createStatusBarItem, disposeStatusBarItem } from './ui/statusBar.js';
 import { indexFile } from './core/indexer.js';
+import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
+import { optimizeDatabase } from './core/batchOps.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -30,6 +32,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const selectModelCommandReg = vscode.commands.registerCommand('nanodex.selectModel', selectModelCommand);
   const selectChatStrategyCommandReg = vscode.commands.registerCommand('nanodex.selectChatStrategy', selectChatStrategyCommand);
   const showModelStatusCommandReg = vscode.commands.registerCommand('nanodex.showModelStatus', showModelStatusCommand);
+  const optimizeCommandReg = vscode.commands.registerCommand('nanodex.optimize', optimizeDatabaseCommand);
 
   context.subscriptions.push(
     planCommandReg,
@@ -40,7 +43,8 @@ export function activate(context: vscode.ExtensionContext): void {
     reindexCommandReg,
     selectModelCommandReg,
     selectChatStrategyCommandReg,
-    showModelStatusCommandReg
+    showModelStatusCommandReg,
+    optimizeCommandReg
   );
 
   // Register chat participant
@@ -67,9 +71,10 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
     return;
   }
 
-  // Create file watcher for TypeScript/JavaScript files
+  // Create file watcher for all supported languages
+  const watchPattern = getFileWatcherPattern();
   fileWatcher = vscode.workspace.createFileSystemWatcher(
-    '**/*.{ts,tsx,js,jsx}',
+    watchPattern,
     false, // ignoreCreateEvents
     false, // ignoreChangeEvents
     false  // ignoreDeleteEvents
@@ -77,6 +82,11 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
 
   // Handle file changes
   const handleFileChange = (uri: vscode.Uri) => {
+    // Check if file language is supported
+    if (!supportsIndexing(uri.fsPath)) {
+      return;
+    }
+
     const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
 
     // Check if database exists
@@ -130,12 +140,68 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
   // Listen for file saves (for onSave and onApply modes)
   if (autoReindexMode === 'onSave' || autoReindexMode === 'onApply') {
     const saveListener = vscode.workspace.onDidSaveTextDocument((document) => {
-      if (['.ts', '.tsx', '.js', '.jsx'].includes(path.extname(document.uri.fsPath))) {
+      if (supportsIndexing(document.uri.fsPath)) {
         handleFileChange(document.uri);
       }
     });
     context.subscriptions.push(saveListener);
   }
+}
+
+/**
+ * Optimize database command
+ */
+async function optimizeDatabaseCommand(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('No workspace folder open');
+    return;
+  }
+
+  const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
+
+  if (!fs.existsSync(dbPath)) {
+    vscode.window.showWarningMessage('No index found. Run "Nanodex: Index Workspace" first.');
+    return;
+  }
+
+  await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Optimizing database',
+      cancellable: false
+    },
+    async () => {
+      let db: Database.Database | undefined;
+      try {
+        db = new Database(dbPath);
+        optimizeDatabase(db);
+        vscode.window.showInformationMessage('Database optimized successfully');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Provide context-specific error messages
+        if (errorMessage.toLowerCase().includes('locked')) {
+          vscode.window.showErrorMessage(
+            'Database is locked. Close other nanodex operations and try again.'
+          );
+        } else if (errorMessage.toLowerCase().includes('disk')) {
+          vscode.window.showErrorMessage(
+            'Insufficient disk space to optimize database.'
+          );
+        } else if (errorMessage.toLowerCase().includes('corrupt')) {
+          vscode.window.showErrorMessage(
+            'Database may be corrupted. Try running "Nanodex: Clear Index" and reindexing.'
+          );
+        } else {
+          vscode.window.showErrorMessage(`Failed to optimize database: ${errorMessage}`);
+        }
+      } finally {
+        db?.close();
+      }
+    }
+  );
 }
 
 async function processPendingIndexes(workspaceRoot: string, dbPath: string): Promise<void> {
