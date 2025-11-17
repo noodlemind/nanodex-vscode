@@ -1,4 +1,7 @@
 import * as vscode from 'vscode';
+import { indexWorkspaceCommand } from './commands/index.js';
+import { clearIndexCommand } from './commands/clear.js';
+import { graphStatsCommand } from './commands/stats.js';
 
 export function activate(context: vscode.ExtensionContext): void {
   console.log('nanodex extension is now active');
@@ -14,19 +17,13 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   // Register Index Workspace command
-  const indexCommand = vscode.commands.registerCommand('nanodex.index', async () => {
-    vscode.window.showInformationMessage('Nanodex: Index Workspace command (not yet implemented)');
-  });
+  const indexCommand = vscode.commands.registerCommand('nanodex.index', indexWorkspaceCommand);
 
   // Register Clear Index command
-  const clearCommand = vscode.commands.registerCommand('nanodex.clear', async () => {
-    vscode.window.showInformationMessage('Nanodex: Clear Index command (not yet implemented)');
-  });
+  const clearCommand = vscode.commands.registerCommand('nanodex.clear', clearIndexCommand);
 
   // Register Graph Stats command
-  const statsCommand = vscode.commands.registerCommand('nanodex.stats', async () => {
-    vscode.window.showInformationMessage('Nanodex: Graph Stats command (not yet implemented)');
-  });
+  const statsCommand = vscode.commands.registerCommand('nanodex.stats', graphStatsCommand);
 
   context.subscriptions.push(
     planCommand,
