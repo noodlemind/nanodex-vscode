@@ -77,3 +77,20 @@ export interface GraphStats {
   edgesByRelation: Record<EdgeRelation, number>;
   databaseSize: number;
 }
+
+/**
+ * Model configuration parsed from provider/model-name format
+ */
+export interface ModelConfig {
+  vendor: string;
+  family: string;
+}
+
+/**
+ * Metadata for a language model
+ */
+export interface ModelMetadata {
+  label: string;
+  shortLabel: string;
+  description: string;
+}

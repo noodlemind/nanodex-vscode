@@ -55,6 +55,21 @@
         "command": "nanodex.stats",
         "title": "Nanodex: Graph Stats",
         "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.selectModel",
+        "title": "Nanodex: Select Model",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.selectChatStrategy",
+        "title": "Nanodex: Select Chat Strategy",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.showModelStatus",
+        "title": "Nanodex: Show Model Status",
+        "category": "Nanodex"
       }
     ],
     "chatParticipants": [

@@ -10,6 +10,7 @@ import { createIssue, getIssuePath } from '../core/issues.js';
 import { loadInstructions } from '../core/prompts.js';
 import { selectRelevantContext, formatContext } from '../core/context.js';
 import { selectAgent, assemblePrompt } from '../core/router.js';
+import { parseModelConfig } from '../core/modelUtils.js';
 
 // Constants for context selection
 const MAX_CONTEXT_DEPTH = 2;
@@ -173,28 +174,9 @@ export async function planCommand(): Promise<void> {
 }
 
 /**
- * Model configuration
- */
-interface ModelConfig {
-  vendor: string;
-  family: string;
-}
-
-/**
- * Parse model configuration string
- */
-function parseModelConfig(modelString: string): ModelConfig {
-  const parts = modelString.split('/');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new Error(`Invalid model format: ${modelString}. Expected format: provider/model-name`);
-  }
-  return { vendor: parts[0], family: parts[1] };
-}
-
-/**
  * Select language model from VS Code API
  */
-async function selectLanguageModel(modelConfig: ModelConfig): Promise<vscode.LanguageModelChat> {
+async function selectLanguageModel(modelConfig: { vendor: string; family: string }): Promise<vscode.LanguageModelChat> {
   const models = await vscode.lm.selectChatModels({
     vendor: modelConfig.vendor,
     family: modelConfig.family

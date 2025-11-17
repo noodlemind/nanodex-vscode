@@ -8,7 +8,9 @@ import { graphStatsCommand } from './commands/stats.js';
 import { reindexCommand } from './commands/reindex.js';
 import { planCommand } from './commands/plan.js';
 import { workCommand } from './commands/work.js';
+import { selectModelCommand, selectChatStrategyCommand, showModelStatusCommand } from './commands/selectModel.js';
 import { registerChatParticipant } from './chat/participant.js';
+import { createStatusBarItem, disposeStatusBarItem } from './ui/statusBar.js';
 import { indexFile } from './core/indexer.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
@@ -25,6 +27,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const clearCommand = vscode.commands.registerCommand('nanodex.clear', clearIndexCommand);
   const statsCommand = vscode.commands.registerCommand('nanodex.stats', graphStatsCommand);
   const reindexCommandReg = vscode.commands.registerCommand('nanodex.reindex', reindexCommand);
+  const selectModelCommandReg = vscode.commands.registerCommand('nanodex.selectModel', selectModelCommand);
+  const selectChatStrategyCommandReg = vscode.commands.registerCommand('nanodex.selectChatStrategy', selectChatStrategyCommand);
+  const showModelStatusCommandReg = vscode.commands.registerCommand('nanodex.showModelStatus', showModelStatusCommand);
 
   context.subscriptions.push(
     planCommandReg,
@@ -32,11 +37,17 @@ export function activate(context: vscode.ExtensionContext): void {
     indexCommand,
     clearCommand,
     statsCommand,
-    reindexCommandReg
+    reindexCommandReg,
+    selectModelCommandReg,
+    selectChatStrategyCommandReg,
+    showModelStatusCommandReg
   );
 
   // Register chat participant
   registerChatParticipant(context);
+
+  // Create status bar item
+  createStatusBarItem(context);
 
   // Setup file watchers for automatic reindexing
   setupFileWatchers(context);
@@ -178,6 +189,9 @@ export async function deactivate(): Promise<void> {
   if (fileWatcher) {
     fileWatcher.dispose();
   }
+
+  // Dispose status bar item
+  disposeStatusBarItem();
 
   console.log('nanodex extension deactivated');
 }

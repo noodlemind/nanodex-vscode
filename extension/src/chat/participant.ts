@@ -10,6 +10,7 @@ import { loadInstructions } from '../core/prompts.js';
 import { selectRelevantContext, formatContext } from '../core/context.js';
 import { selectAgent, assemblePrompt } from '../core/router.js';
 import { listIssues } from '../core/issues.js';
+import { parseModelConfig } from '../core/modelUtils.js';
 
 // Constants
 const MAX_CONTEXT_DEPTH = 2;
@@ -54,25 +55,6 @@ function isChatResultMetadata(metadata: unknown): metadata is ChatResultMetadata
   }
 
   return true;
-}
-
-/**
- * Model configuration interface
- */
-interface ModelConfig {
-  vendor: string;
-  family: string;
-}
-
-/**
- * Parse model configuration string
- */
-function parseModelConfig(modelString: string): ModelConfig {
-  const parts = modelString.split('/');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    throw new Error(`Invalid model format: ${modelString}. Expected format: provider/model-name`);
-  }
-  return { vendor: parts[0], family: parts[1] };
 }
 
 /**
