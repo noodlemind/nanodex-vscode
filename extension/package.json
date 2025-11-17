@@ -4,6 +4,11 @@
   "description": "Structured context + compounding flows for predictable coding agents",
   "version": "0.1.0",
   "publisher": "nanodex",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nanodex/nanodex-vscode.git"
+  },
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.105.0",
     "node": ">=18.0.0"

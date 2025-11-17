@@ -1,0 +1,33 @@
+# Source files
+src/**
+*.ts
+!dist/**/*.d.ts
+
+# Tests
+**/test/**
+**/*.test.ts
+**/*.spec.ts
+
+# Build configuration
+tsconfig.json
+.eslintrc.json
+
+# Development files
+*.map
+**/*.map
+.vscode/
+.vscode-test/
+
+# Documentation (development only)
+CONTRIBUTING.md
+
+# Node modules (bundled if needed)
+node_modules/
+.pnpm-store/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
