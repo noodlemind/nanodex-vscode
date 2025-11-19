@@ -42,6 +42,13 @@ jobs:
           npx @electron/rebuild --version=37.6.0 \
             --module-dir=node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
 
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          cd extension
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Package extension
         run: |
           cd extension
@@ -62,7 +69,7 @@ jobs:
           cd ..
           rm nanodex-*.vsix
           cd vsix_extract
-          zip -q -r ../nanodex-$(node -p "require('../package.json').version").vsix .
+          zip -q -r ../nanodex-${{ steps.package-version.outputs.VERSION }}.vsix .
           cd ..
           rm -rf vsix_extract
 
