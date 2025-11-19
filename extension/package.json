@@ -9,6 +9,7 @@
     "type": "git",
     "url": "https://github.com/nanodex/nanodex-vscode.git"
   },
+  "icon": "icon.png",
   "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.105.0",
