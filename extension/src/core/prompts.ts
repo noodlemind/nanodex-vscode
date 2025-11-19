@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
-import { glob } from 'glob';
+// import { glob } from 'glob'; // TEMPORARILY DISABLED: glob removed to fix packaging
 
 export interface AgentDefinition {
   id: string;
@@ -52,24 +52,127 @@ export async function loadInstructions(workspaceRoot: string): Promise<Instructi
   }
 
   // Load instruction files from instructions/ and .nanodex/instructions/
-  const config = vscode.workspace.getConfiguration('nanodex');
-  const instructionPatterns = config.get<string[]>('instructions.files', [
-    'instructions/**/*.instructions.md',
-    '.nanodex/instructions/**/*.instructions.md'
-  ]);
-
-  for (const pattern of instructionPatterns) {
-    await loadInstructionFiles(workspaceRoot, pattern, instructions);
-  }
+  // TEMPORARILY DISABLED: Requires glob dependency which causes packaging issues
+  // TODO: Re-enable after implementing proper bundling solution
+  // const config = vscode.workspace.getConfiguration('nanodex');
+  // const instructionPatterns = config.get<string[]>('instructions.files', [
+  //   'instructions/**/*.instructions.md',
+  //   '.nanodex/instructions/**/*.instructions.md'
+  // ]);
+  //
+  // for (const pattern of instructionPatterns) {
+  //   await loadInstructionFiles(workspaceRoot, pattern, instructions);
+  // }
 
   return instructions;
 }
 
 /**
- * Load built-in agent definitions
+ * Load built-in agent definitions from YAML files
  */
 async function loadBuiltInAgents(instructions: Instructions): Promise<void> {
-  // Add default agent definitions
+  // Get extension path - agents are in dist/agents/ after build
+  const extensionPath = getExtensionPath();
+  if (!extensionPath) {
+    console.error('[nanodex] Cannot load agents: extension path not found');
+    loadFallbackAgents(instructions);
+    return;
+  }
+
+  const agentsDir = path.join(extensionPath, 'dist', 'agents');
+
+  if (!fs.existsSync(agentsDir)) {
+    console.error(`[nanodex] Agents directory not found: ${agentsDir}`);
+    loadFallbackAgents(instructions);
+    return;
+  }
+
+  try {
+    const files = fs.readdirSync(agentsDir);
+    const agentFiles = files.filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
+
+    console.log(`[nanodex] Loading ${agentFiles.length} agent definitions from ${agentsDir}`);
+
+    for (const file of agentFiles) {
+      try {
+        const filePath = path.join(agentsDir, file);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const agentData = yaml.load(content);
+
+        const agent = normalizeAgentDefinition(agentData, filePath);
+        if (agent) {
+          instructions.agents.set(agent.id, agent);
+          console.log(`[nanodex] Loaded agent: ${agent.id} (${agent.name})`);
+        }
+      } catch (error) {
+        console.error(`[nanodex] Failed to load agent from ${file}:`, error);
+      }
+    }
+
+    console.log(`[nanodex] Successfully loaded ${instructions.agents.size} agents`);
+  } catch (error) {
+    console.error('[nanodex] Failed to load agents:', error);
+    loadFallbackAgents(instructions);
+  }
+}
+
+/**
+ * Get extension path from VS Code extension context
+ * This is a workaround since we don't have access to the context here
+ */
+function getExtensionPath(): string | undefined {
+  // In production, agents are in the extension directory
+  // Try to find the extension path by looking for this file's location
+  // ES modules use import.meta.url instead of __filename
+  const currentFileUrl = import.meta.url;
+  const currentFile = new URL(currentFileUrl).pathname;
+
+  // Extension structure: extension/dist/core/prompts.js
+  // We need to go up to extension/
+  const distDir = path.dirname(path.dirname(currentFile));
+  const extensionDir = path.dirname(distDir);
+
+  return extensionDir;
+}
+
+/**
+ * Normalize agent definition to standard format
+ * Supports both simple and extended YAML schemas
+ */
+function normalizeAgentDefinition(agentData: any, filePath: string): AgentDefinition | null {
+  // Validate required fields
+  if (!agentData || typeof agentData !== 'object') {
+    console.error(`Invalid agent data in ${filePath}: not an object`);
+    return null;
+  }
+
+  if (!agentData.id || typeof agentData.id !== 'string') {
+    console.error(`Invalid agent data in ${filePath}: missing or invalid id`);
+    return null;
+  }
+
+  // Normalize fields from different schemas
+  const id = agentData.id;
+  const name = agentData.displayName || agentData.name || id;
+
+  // Extended schema uses 'prompt', simple schema uses 'context'
+  const context = agentData.prompt || agentData.context || '';
+  const constraints = agentData.constraints || '';
+  const response = agentData.response || '';
+
+  return {
+    id,
+    name,
+    context,
+    constraints,
+    response
+  };
+}
+
+/**
+ * Load fallback agents when YAML loading fails
+ */
+function loadFallbackAgents(instructions: Instructions): void {
   instructions.agents.set('planner', {
     id: 'planner',
     name: 'Planner',
@@ -105,12 +208,20 @@ async function loadBuiltInAgents(instructions: Instructions): Promise<void> {
 
 /**
  * Load instruction files matching a pattern
+ *
+ * TEMPORARILY DISABLED: Requires glob dependency which causes packaging issues
+ * TODO: Re-enable after implementing proper bundling solution (esbuild/webpack)
  */
 async function loadInstructionFiles(
   workspaceRoot: string,
   pattern: string,
   instructions: Instructions
 ): Promise<void> {
+  // DISABLED: glob dependency removed
+  console.log('[nanodex] loadInstructionFiles disabled - glob dependency removed for packaging');
+  return;
+
+  /* ORIGINAL IMPLEMENTATION - commented out until glob is available
   try {
     const files = await glob(pattern, { cwd: workspaceRoot });
 
@@ -150,6 +261,7 @@ async function loadInstructionFiles(
   } catch (error) {
     console.error(`Failed to load instruction files for pattern ${pattern}:`, error);
   }
+  */
 }
 
 /**

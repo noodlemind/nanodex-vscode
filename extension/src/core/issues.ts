@@ -24,6 +24,13 @@ export interface Issue {
       nodeCount?: number;
     };
   };
+  flow?: {
+    id: string;
+    steps?: Array<{
+      name: string;
+      agent: string;
+    }>;
+  };
 }
 
 /**
@@ -309,6 +316,11 @@ export async function createIssue(
       tokenCount?: number;
       nodeCount?: number;
     };
+    flow?: string;
+    steps?: Array<{
+      name: string;
+      agent: string;
+    }>;
   }
 ): Promise<Issue> {
   const id = await generateIssueId(workspaceRoot);
@@ -325,6 +337,10 @@ export async function createIssue(
     context: options?.relatedModules || options?.graphContext ? {
       relatedModules: options?.relatedModules,
       graphContext: options?.graphContext
+    } : undefined,
+    flow: options?.flow ? {
+      id: options.flow,
+      steps: options.steps
     } : undefined
   };
 

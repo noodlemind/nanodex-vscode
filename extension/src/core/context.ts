@@ -71,6 +71,27 @@ export function selectRelevantContext(
     }
   }
 
+  // Fallback: if no specific matches, provide overview of the codebase
+  if (allNodes.length === 0) {
+    const allNodesInDb = db.prepare('SELECT * FROM nodes ORDER BY type, name').all() as Node[];
+    const allEdgesInDb = db.prepare('SELECT source_id as sourceId, target_id as targetId, relation FROM edges').all() as Array<{ sourceId: string; targetId: string; relation: string }>;
+
+    // Include a sample of nodes for overview
+    allNodes.push(...allNodesInDb.slice(0, 20));
+
+    // Include all edges for the sampled nodes
+    const sampledNodeIds = new Set(allNodes.map(n => n.id));
+    for (const edge of allEdgesInDb) {
+      if (sampledNodeIds.has(edge.sourceId) || sampledNodeIds.has(edge.targetId)) {
+        allEdges.push({
+          source: edge.sourceId,
+          target: edge.targetId,
+          relation: edge.relation
+        });
+      }
+    }
+  }
+
   result.nodes = allNodes;
 
   // Generate facts

@@ -1,6 +1,27 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import Mocha from 'mocha';
-import { glob } from 'glob';
+// import { glob } from 'glob'; // REMOVED: glob dependency causes packaging issues
+
+/**
+ * Recursively find all .test.js files
+ */
+function findTestFiles(dir: string, fileList: string[] = []): string[] {
+  const files = fs.readdirSync(dir);
+
+  files.forEach(file => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+
+    if (stat.isDirectory()) {
+      findTestFiles(filePath, fileList);
+    } else if (file.endsWith('.test.js')) {
+      fileList.push(filePath);
+    }
+  });
+
+  return fileList;
+}
 
 export async function run(): Promise<void> {
   // Create the mocha test
@@ -12,10 +33,10 @@ export async function run(): Promise<void> {
   const testsRoot = path.resolve(__dirname, '..');
 
   try {
-    const files = await glob('**/*.test.js', { cwd: testsRoot });
+    const files = findTestFiles(testsRoot);
 
     // Add files to the test suite
-    files.forEach((f: string) => mocha.addFile(path.resolve(testsRoot, f)));
+    files.forEach((f: string) => mocha.addFile(f));
 
     // Run the mocha test
     return new Promise<void>((resolve, reject) => {

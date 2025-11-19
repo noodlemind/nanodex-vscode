@@ -3,7 +3,7 @@
  */
 
 import * as vscode from 'vscode';
-import { isValidModelString, isValidChatStrategy, getAvailableModels, DEFAULT_MODEL } from '../core/modelUtils.js';
+import { isValidModelString, isValidChatStrategy, getAvailableModelsFromAPI, DEFAULT_MODEL } from '../core/modelUtils.js';
 
 /**
  * Show current model configuration
@@ -56,10 +56,33 @@ export async function selectModelCommand(): Promise<void> {
 
   // Runtime validation
   if (!isValidModelString(currentModel)) {
-    console.warn(`Invalid current model: ${currentModel}, using default`);
+    console.warn(`[nanodex] Invalid current model: ${currentModel}, using default`);
   }
 
-  const items = getAvailableModels().map(model => ({
+  // Query available models dynamically from VS Code LM API
+  const models = await getAvailableModelsFromAPI();
+
+  if (models.length === 0) {
+    const selection = await vscode.window.showErrorMessage(
+      'No language models available. Please ensure GitHub Copilot or another language model provider is installed and authenticated.',
+      'Learn More'
+    );
+
+    if (selection === 'Learn More') {
+      vscode.env.openExternal(vscode.Uri.parse('https://code.visualstudio.com/api/extension-guides/language-model'));
+    }
+    return;
+  }
+
+  // Sort models by vendor, then family for better organization
+  const sortedModels = models.sort((a, b) => {
+    if (a.vendor !== b.vendor) {
+      return a.vendor.localeCompare(b.vendor);
+    }
+    return a.family.localeCompare(b.family);
+  });
+
+  const items = sortedModels.map(model => ({
     label: model.label,
     description: model.description,
     detail: model.value === currentModel ? '✓ Currently selected' : undefined,

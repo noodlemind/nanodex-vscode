@@ -9,52 +9,82 @@ import { reindexCommand } from './commands/reindex.js';
 import { planCommand } from './commands/plan.js';
 import { workCommand } from './commands/work.js';
 import { selectModelCommand, selectChatStrategyCommand, showModelStatusCommand } from './commands/selectModel.js';
+import { genCommandCommand } from './commands/genCommand.js';
+import { triageCommand } from './commands/triage.js';
+import { resolveTodosCommand } from './commands/resolveTodos.js';
+import { reviewCommand } from './commands/review.js';
 import { registerChatParticipant } from './chat/participant.js';
 import { createStatusBarItem, disposeStatusBarItem } from './ui/statusBar.js';
 import { indexFile } from './core/indexer.js';
 import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
 import { optimizeDatabase } from './core/batchOps.js';
+import { registerModelChangeHandler } from './core/modelChangeHandler.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
 const pendingIndexes = new Set<string>();
 
 export function activate(context: vscode.ExtensionContext): void {
-  console.log('nanodex extension is now active');
+  console.log('nanodex extension is activating...');
 
-  // Register commands
-  const planCommandReg = vscode.commands.registerCommand('nanodex.plan', planCommand);
-  const workCommandReg = vscode.commands.registerCommand('nanodex.work', workCommand);
-  const indexCommand = vscode.commands.registerCommand('nanodex.index', indexWorkspaceCommand);
-  const clearCommand = vscode.commands.registerCommand('nanodex.clear', clearIndexCommand);
-  const statsCommand = vscode.commands.registerCommand('nanodex.stats', graphStatsCommand);
-  const reindexCommandReg = vscode.commands.registerCommand('nanodex.reindex', reindexCommand);
-  const selectModelCommandReg = vscode.commands.registerCommand('nanodex.selectModel', selectModelCommand);
-  const selectChatStrategyCommandReg = vscode.commands.registerCommand('nanodex.selectChatStrategy', selectChatStrategyCommand);
-  const showModelStatusCommandReg = vscode.commands.registerCommand('nanodex.showModelStatus', showModelStatusCommand);
-  const optimizeCommandReg = vscode.commands.registerCommand('nanodex.optimize', optimizeDatabaseCommand);
+  try {
+    // Register commands
+    console.log('Registering commands...');
+    const planCommandReg = vscode.commands.registerCommand('nanodex.plan', () => planCommand(context));
+    const workCommandReg = vscode.commands.registerCommand('nanodex.work', () => workCommand(context));
+    const indexCommand = vscode.commands.registerCommand('nanodex.index', indexWorkspaceCommand);
+    const clearCommand = vscode.commands.registerCommand('nanodex.clear', clearIndexCommand);
+    const statsCommand = vscode.commands.registerCommand('nanodex.stats', graphStatsCommand);
+    const reindexCommandReg = vscode.commands.registerCommand('nanodex.reindex', reindexCommand);
+    const selectModelCommandReg = vscode.commands.registerCommand('nanodex.selectModel', selectModelCommand);
+    const selectChatStrategyCommandReg = vscode.commands.registerCommand('nanodex.selectChatStrategy', selectChatStrategyCommand);
+    const showModelStatusCommandReg = vscode.commands.registerCommand('nanodex.showModelStatus', showModelStatusCommand);
+    const optimizeCommandReg = vscode.commands.registerCommand('nanodex.optimize', optimizeDatabaseCommand);
+    const genCommandCommandReg = vscode.commands.registerCommand('nanodex.genCommand', () => genCommandCommand(context));
+    const triageCommandReg = vscode.commands.registerCommand('nanodex.triage', () => triageCommand(context));
+    const resolveTodosCommandReg = vscode.commands.registerCommand('nanodex.resolveTodos', () => resolveTodosCommand(context));
+    const reviewCommandReg = vscode.commands.registerCommand('nanodex.review', () => reviewCommand(context));
 
-  context.subscriptions.push(
-    planCommandReg,
-    workCommandReg,
-    indexCommand,
-    clearCommand,
-    statsCommand,
-    reindexCommandReg,
-    selectModelCommandReg,
-    selectChatStrategyCommandReg,
-    showModelStatusCommandReg,
-    optimizeCommandReg
-  );
+    context.subscriptions.push(
+      planCommandReg,
+      workCommandReg,
+      indexCommand,
+      clearCommand,
+      statsCommand,
+      reindexCommandReg,
+      selectModelCommandReg,
+      selectChatStrategyCommandReg,
+      showModelStatusCommandReg,
+      optimizeCommandReg,
+      genCommandCommandReg,
+      triageCommandReg,
+      resolveTodosCommandReg,
+      reviewCommandReg
+    );
+    console.log('Commands registered successfully');
 
-  // Register chat participant
-  registerChatParticipant(context);
+    // Register chat participant
+    console.log('Attempting to register chat participant...');
+    registerChatParticipant(context);
 
-  // Create status bar item
-  createStatusBarItem(context);
+    // Create status bar item
+    console.log('Creating status bar item...');
+    createStatusBarItem(context);
 
-  // Setup file watchers for automatic reindexing
-  setupFileWatchers(context);
+    // Register model change handler
+    console.log('Registering model change handler...');
+    registerModelChangeHandler(context);
+
+    // Setup file watchers for automatic reindexing
+    console.log('Setting up file watchers...');
+    setupFileWatchers(context);
+
+    console.log('nanodex extension activated successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Failed to activate nanodex extension:', errorMessage, error);
+    vscode.window.showErrorMessage(`Failed to activate Nanodex: ${errorMessage}`);
+  }
 }
 
 function setupFileWatchers(context: vscode.ExtensionContext): void {
