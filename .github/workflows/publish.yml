@@ -1,0 +1,100 @@
+name: Publish Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.5.0)'
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build extension
+        run: |
+          cd extension
+          pnpm run build
+
+      - name: Rebuild native modules for Electron 37
+        run: |
+          npx @electron/rebuild --version=37.6.0 \
+            --module-dir=node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
+
+      - name: Package extension
+        run: |
+          cd extension
+
+          # Package without dependencies
+          pnpm exec vsce package --no-dependencies
+
+          # Extract and add dependencies
+          mkdir -p vsix_extract
+          cd vsix_extract
+          unzip -q ../nanodex-*.vsix
+
+          mkdir -p extension/node_modules
+          cp -r ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3 extension/node_modules/
+          cp -r ../../node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml extension/node_modules/
+
+          # Repackage
+          cd ..
+          rm nanodex-*.vsix
+          cd vsix_extract
+          zip -q -r ../nanodex-$(node -p "require('../package.json').version").vsix .
+          cd ..
+          rm -rf vsix_extract
+
+          ls -lh nanodex-*.vsix
+
+      - name: Publish to VS Code Marketplace
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          cd extension
+          pnpm exec vsce publish --packagePath nanodex-*.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: extension/nanodex-*.vsix
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nanodex-vsix
+          path: extension/nanodex-*.vsix
+          retention-days: 30
