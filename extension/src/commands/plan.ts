@@ -1,22 +1,14 @@
 /**
- * Plan command implementation
+ * Plan command implementation using flow engine
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
-import Database from 'better-sqlite3';
 import { createIssue, getIssuePath } from '../core/issues.js';
 import { loadInstructions } from '../core/prompts.js';
-import { selectRelevantContext, formatContext } from '../core/context.js';
-import { selectAgent, assemblePrompt } from '../core/router.js';
-import { parseModelConfig } from '../core/modelUtils.js';
+import { loadFlowDefinition, executeFlow, findFlowFile } from '../core/flowEngine.js';
 
-// Constants for context selection
-const MAX_CONTEXT_DEPTH = 2;
-const MAX_CONTEXT_TOKENS = 2000;
-
-export async function planCommand(): Promise<void> {
+export async function planCommand(context: vscode.ExtensionContext): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
   if (!workspaceFolder) {
@@ -41,23 +33,7 @@ export async function planCommand(): Promise<void> {
       return; // User cancelled
     }
 
-    // Step 2: Get acceptance criteria (optional)
-    const acceptanceCriteriaInput = await vscode.window.showInputBox({
-      prompt: 'Acceptance criteria (comma-separated, optional)',
-      placeHolder: 'e.g., Users can register, JWT tokens expire after 24h'
-    });
-
-    const acceptanceCriteria = parseCommaSeparatedInput(acceptanceCriteriaInput);
-
-    // Step 3: Get constraints (optional)
-    const constraintsInput = await vscode.window.showInputBox({
-      prompt: 'Constraints (comma-separated, optional)',
-      placeHolder: 'e.g., Use bcrypt for passwords, Store tokens in httpOnly cookies'
-    });
-
-    const constraints = parseCommaSeparatedInput(constraintsInput);
-
-    // Step 4: Query graph for relevant context
+    // Step 2: Execute flow
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -65,75 +41,35 @@ export async function planCommand(): Promise<void> {
         cancellable: false
       },
       async (progress) => {
-        progress.report({ message: 'Loading graph context...' });
+        progress.report({ message: 'Loading flow definition...' });
 
-        const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
-        let graphContext = '';
-        let relatedModules: string[] = [];
-
-        if (fs.existsSync(dbPath)) {
-          let db: Database.Database | undefined;
-          try {
-            db = new Database(dbPath, { readonly: true });
-            const context = selectRelevantContext(goal, db, MAX_CONTEXT_DEPTH, MAX_CONTEXT_TOKENS);
-            graphContext = formatContext(context);
-
-            // Extract module names for issue context
-            relatedModules = context.nodes
-              .filter(n => n.type === 'module')
-              .map(n => n.name);
-          } catch (dbError) {
-            console.error('Failed to query graph database:', dbError);
-          } finally {
-            if (db) {
-              db.close();
-            }
-          }
+        // Load plan.flow.yaml
+        const flowPath = findFlowFile('nanodex.flow.plan', context.extensionPath);
+        if (!flowPath) {
+          throw new Error('Plan flow definition not found');
         }
 
-        progress.report({ message: 'Loading instructions...' });
+        const flow = loadFlowDefinition(flowPath);
+        if (!flow) {
+          throw new Error('Failed to load plan flow definition');
+        }
 
-        // Load instructions
+        console.log(`[plan] Loaded flow: ${flow.id} with ${flow.steps.length} steps`);
+
+        progress.report({ message: 'Loading instructions and agents...' });
+
+        // Load instructions and agents
         const instructions = await loadInstructions(workspaceFolder.uri.fsPath);
 
-        // Select planner agent
-        const agent = selectAgent('plan', instructions.agents);
+        console.log(`[plan] Loaded ${instructions.agents.size} agents`);
 
-        if (!agent) {
-          throw new Error('Planner agent not configured. Ensure AGENTS.md exists or built-in agents are loaded.');
-        }
-
-        progress.report({ message: 'Generating plan...' });
-
-        // Format task description
-        const taskParts = [`Goal: ${goal}`];
-
-        taskParts.push('\nAcceptance Criteria:');
-        if (acceptanceCriteria && acceptanceCriteria.length > 0) {
-          taskParts.push(acceptanceCriteria.map(c => `- ${c}`).join('\n'));
-        } else {
-          taskParts.push('None specified');
-        }
-
-        taskParts.push('\nConstraints:');
-        if (constraints && constraints.length > 0) {
-          taskParts.push(constraints.map(c => `- ${c}`).join('\n'));
-        } else {
-          taskParts.push('None specified');
-        }
-
-        const taskDescription = taskParts.join('\n');
-
-        // Assemble prompt
-        const prompt = assemblePrompt(
-          agent,
-          instructions.generalInstructions,
-          graphContext,
-          taskDescription
-        );
-
-        // Call Language Model API
-        const generatedPlan = await callLanguageModel(prompt);
+        // Execute flow
+        const result = await executeFlow(flow, {
+          workspaceRoot: workspaceFolder.uri.fsPath,
+          agents: instructions.agents,
+          userInputs: { goal },
+          progress
+        });
 
         progress.report({ message: 'Saving issue...' });
 
@@ -142,12 +78,13 @@ export async function planCommand(): Promise<void> {
           workspaceFolder.uri.fsPath,
           goal,
           goal,
-          generatedPlan,
+          result.finalOutput,
           {
-            acceptanceCriteria,
-            constraints,
-            relatedModules,
-            graphContext: graphContext ? { summary: graphContext } : undefined
+            flow: flow.id,
+            steps: result.stepResults.map(r => ({
+              name: r.stepName,
+              agent: r.agentId
+            }))
           }
         );
 
@@ -170,96 +107,7 @@ export async function planCommand(): Promise<void> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     vscode.window.showErrorMessage(`Failed to create plan: ${errorMessage}`);
+    console.error('[plan] Error:', error);
   }
 }
 
-/**
- * Select language model from VS Code API
- */
-async function selectLanguageModel(modelConfig: { vendor: string; family: string }): Promise<vscode.LanguageModelChat> {
-  const models = await vscode.lm.selectChatModels({
-    vendor: modelConfig.vendor,
-    family: modelConfig.family
-  });
-
-  if (models.length === 0) {
-    throw new Error(`No language model found for ${modelConfig.vendor}/${modelConfig.family}`);
-  }
-
-  return models[0];
-}
-
-/**
- * Stream model response
- */
-async function streamModelResponse(
-  model: vscode.LanguageModelChat,
-  prompt: string,
-  token: vscode.CancellationToken
-): Promise<string> {
-  const messages = [vscode.LanguageModelChatMessage.User(prompt)];
-  const request = await model.sendRequest(messages, {}, token);
-
-  let response = '';
-  for await (const fragment of request.text) {
-    response += fragment;
-  }
-
-  return response.trim();
-}
-
-/**
- * Get default plan template for fallback
- */
-function getDefaultPlanTemplate(): string {
-  return `# Implementation Plan
-
-## Overview
-This is a placeholder plan. Language model API call failed.
-
-## Steps
-1. Analyze requirements
-2. Design solution
-3. Implement features
-4. Write tests
-5. Review and refine
-
-## Notes
-Please configure the language model in settings.`;
-}
-
-/**
- * Parse comma-separated input into array
- */
-function parseCommaSeparatedInput(input: string | undefined): string[] | undefined {
-  if (!input) {
-    return undefined;
-  }
-
-  const items = input
-    .split(',')
-    .map(item => item.trim())
-    .filter(item => item.length > 0);
-
-  return items.length > 0 ? items : undefined;
-}
-
-/**
- * Call Language Model API to generate plan
- */
-async function callLanguageModel(prompt: string): Promise<string> {
-  const config = vscode.workspace.getConfiguration('nanodex');
-  const defaultModel = config.get<string>('defaultModel', 'copilot/gpt-4o');
-
-  const tokenSource = new vscode.CancellationTokenSource();
-  try {
-    const modelConfig = parseModelConfig(defaultModel);
-    const model = await selectLanguageModel(modelConfig);
-    return await streamModelResponse(model, prompt, tokenSource.token);
-  } catch (error) {
-    console.error('Failed to call language model:', error);
-    return getDefaultPlanTemplate();
-  } finally {
-    tokenSource.dispose();
-  }
-}

@@ -2,7 +2,8 @@
   "name": "nanodex",
   "displayName": "nanodex",
   "description": "Structured context + compounding flows for predictable coding agents",
-  "version": "0.1.0",
+  "version": "0.4.0",
+  "type": "module",
   "publisher": "nanodex",
   "repository": {
     "type": "git",
@@ -33,52 +34,52 @@
     "commands": [
       {
         "command": "nanodex.plan",
-        "title": "Nanodex: Plan",
+        "title": "Plan",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.work",
-        "title": "Nanodex: Work",
+        "title": "Work",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.index",
-        "title": "Nanodex: Index Workspace",
+        "title": "Index Workspace",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.reindex",
-        "title": "Nanodex: Reindex Changed Files",
+        "title": "Reindex Changed Files",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.clear",
-        "title": "Nanodex: Clear Index",
+        "title": "Clear Index",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.stats",
-        "title": "Nanodex: Graph Stats",
+        "title": "Graph Stats",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.selectModel",
-        "title": "Nanodex: Select Model",
+        "title": "Select Model",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.selectChatStrategy",
-        "title": "Nanodex: Select Chat Strategy",
+        "title": "Select Chat Strategy",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.showModelStatus",
-        "title": "Nanodex: Show Model Status",
+        "title": "Show Model Status",
         "category": "Nanodex"
       },
       {
         "command": "nanodex.optimize",
-        "title": "Nanodex: Optimize Database",
+        "title": "Optimize Database",
         "category": "Nanodex"
       }
     ],
@@ -114,21 +115,7 @@
         "nanodex.defaultModel": {
           "type": "string",
           "default": "copilot/gpt-4o",
-          "enum": [
-            "copilot/gpt-4o",
-            "copilot/gpt-4o-mini",
-            "copilot/claude-3.5-sonnet",
-            "copilot/o1",
-            "copilot/o1-mini"
-          ],
-          "enumDescriptions": [
-            "GPT-4o - Best balance of quality and speed",
-            "GPT-4o Mini - Faster, cheaper for simple tasks",
-            "Claude 3.5 Sonnet - Anthropic's latest model",
-            "o1 - Advanced reasoning model",
-            "o1 Mini - Efficient reasoning model"
-          ],
-          "description": "Default model for Plan/Work commands"
+          "description": "Default model for Plan/Work commands (format: provider/model-name). Available models are dynamically queried from VS Code Language Model API."
         },
         "nanodex.chat.modelStrategy": {
           "type": "string",
@@ -195,7 +182,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run build",
-    "build": "tsc -p ./",
+    "build": "tsc -p ./ && pnpm run copy-resources",
+    "copy-resources": "mkdir -p dist/agents dist/prompts/flows && cp -r src/agents/*.yaml dist/agents/ 2>/dev/null || true && cp -r src/agents/*.yml dist/agents/ 2>/dev/null || true && cp -r src/prompts/flows/*.yaml dist/prompts/flows/ 2>/dev/null || true",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js",
@@ -213,7 +201,6 @@
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.1",
     "eslint": "^9.0.0",
-    "glob": "^11.0.0",
     "mocha": "^10.8.2",
     "typescript": "^5.7.0"
   },

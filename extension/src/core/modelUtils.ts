@@ -7,12 +7,16 @@
  * @module modelUtils
  */
 
+import * as vscode from 'vscode';
 import { ModelConfig, ModelMetadata } from './types.js';
 
 /**
  * Centralized model metadata registry mapping model identifiers to their display metadata.
  *
  * Model identifiers follow the format: `provider/model-name`
+ *
+ * NOTE: This registry is now optional. Models are dynamically queried from vscode.lm API.
+ * This registry only provides enhanced display labels for known models.
  *
  * @example
  * ```typescript
@@ -21,31 +25,8 @@ import { ModelConfig, ModelMetadata } from './types.js';
  * ```
  */
 export const MODEL_METADATA: Record<string, ModelMetadata> = {
-  'copilot/gpt-4o': {
-    label: 'GPT-4o',
-    shortLabel: 'GPT-4o',
-    description: 'Best balance of quality and speed'
-  },
-  'copilot/gpt-4o-mini': {
-    label: 'GPT-4o Mini',
-    shortLabel: 'GPT-4o mini',
-    description: 'Faster, cheaper for simple tasks'
-  },
-  'copilot/claude-3.5-sonnet': {
-    label: 'Claude 3.5 Sonnet',
-    shortLabel: 'Claude 3.5',
-    description: "Anthropic's latest model"
-  },
-  'copilot/o1': {
-    label: 'o1',
-    shortLabel: 'o1',
-    description: 'Advanced reasoning model'
-  },
-  'copilot/o1-mini': {
-    label: 'o1 Mini',
-    shortLabel: 'o1 mini',
-    description: 'Efficient reasoning model'
-  }
+  // Hardcoded metadata removed - models are now queried dynamically from vscode.lm API
+  // Keeping registry structure for potential future use (custom display names, etc.)
 };
 
 /**
@@ -183,6 +164,11 @@ export function formatModelForStatusBar(modelString: string): { text: string; to
 /**
  * Get list of available model options for use in quick pick menus.
  *
+ * This function returns a static list based on MODEL_METADATA.
+ * For dynamic model detection, use getAvailableModelsFromAPI().
+ *
+ * NOTE: MODEL_METADATA is now empty - this returns [] to force dynamic API usage.
+ *
  * @returns Array of model options with label, description, and value
  *
  * @example
@@ -194,9 +180,86 @@ export function formatModelForStatusBar(modelString: string): { text: string; to
  * ```
  */
 export function getAvailableModels(): Array<{ label: string; description: string; value: string }> {
-  return Object.entries(MODEL_METADATA).map(([value, metadata]) => ({
-    label: metadata.label,
-    description: metadata.description,
-    value
-  }));
+  // Hardcoded models removed - returns empty array to force dynamic API query
+  console.warn('[nanodex] getAvailableModels() called but MODEL_METADATA is empty - use getAvailableModelsFromAPI() instead');
+  return [];
+}
+
+/**
+ * Query available language models from VS Code Language Model API.
+ *
+ * This function dynamically detects all available models at runtime,
+ * merging with MODEL_METADATA for enhanced display information.
+ *
+ * @returns Promise resolving to array of available models with metadata
+ *
+ * @example
+ * ```typescript
+ * const models = await getAvailableModelsFromAPI();
+ * const selected = await vscode.window.showQuickPick(models, {
+ *   placeHolder: 'Select a model'
+ * });
+ * ```
+ */
+export async function getAvailableModelsFromAPI(): Promise<Array<{
+  id: string;
+  vendor: string;
+  family: string;
+  version?: string;
+  label: string;
+  description: string;
+  value: string;
+}>> {
+  try {
+    // Check if vscode.lm API is available
+    if (!vscode.lm || !vscode.lm.selectChatModels) {
+      console.error('[nanodex] vscode.lm API not available - this should not happen in VS Code 1.105.0+');
+      console.error('[nanodex] Falling back to empty list (no hardcoded models)');
+      return [];
+    }
+
+    console.log('[nanodex] Querying vscode.lm.selectChatModels() for available models...');
+
+    // Query all available models (no filter)
+    const models = await vscode.lm.selectChatModels();
+
+    console.log(`[nanodex] API returned ${models.length} models`);
+
+    if (models.length === 0) {
+      console.warn('[nanodex] No language models available from API - is Copilot installed and authenticated?');
+      return [];
+    }
+
+    // Log each model from API for debugging
+    models.forEach((model, index) => {
+      console.log(`[nanodex] Model ${index + 1}: id="${model.id}", vendor="${model.vendor}", family="${model.family}", version="${model.version || 'none'}"`);
+    });
+
+    // Convert to QuickPick format, merge with metadata for known models
+    const result = models.map(model => {
+      const modelString = `${model.vendor}/${model.family}`;
+      const metadata = MODEL_METADATA[modelString];
+
+      const converted = {
+        id: model.id,
+        vendor: model.vendor,
+        family: model.family,
+        version: model.version,
+        label: metadata?.label || model.family,
+        description: metadata?.description || `${model.vendor} model${model.version ? ` (v${model.version})` : ''}`,
+        value: modelString
+      };
+
+      console.log(`[nanodex] Converted to: label="${converted.label}", value="${converted.value}"`);
+      return converted;
+    });
+
+    console.log(`[nanodex] Successfully converted ${result.length} models for display`);
+    return result;
+  } catch (error) {
+    console.error('[nanodex] Failed to query available models from API:', error);
+    console.error('[nanodex] Error details:', error instanceof Error ? error.message : String(error));
+    // Return empty list - no hardcoded fallback
+    return [];
+  }
 }

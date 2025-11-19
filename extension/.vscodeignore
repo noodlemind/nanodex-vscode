@@ -22,8 +22,14 @@ tsconfig.json
 CONTRIBUTING.md
 
 # Node modules (bundled if needed)
-node_modules/
 .pnpm-store/
+node_modules/**
+!node_modules/better-sqlite3
+!node_modules/better-sqlite3/**
+!node_modules/glob
+!node_modules/glob/**
+!node_modules/js-yaml
+!node_modules/js-yaml/**
 
 # Git
 .git/

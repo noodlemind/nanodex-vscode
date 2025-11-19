@@ -414,56 +414,85 @@ async function handleGeneralRequest(
  * Register chat participant
  */
 export function registerChatParticipant(context: vscode.ExtensionContext): void {
-  const participant = vscode.chat.createChatParticipant('nanodex', handleChatRequest);
-
-  participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
-
-  // Add slash commands
-  participant.followupProvider = {
-    provideFollowups(result: vscode.ChatResult, context: vscode.ChatContext, token: vscode.CancellationToken) {
-      const followups: vscode.ChatFollowup[] = [];
-
-      if (!result.metadata) {
-        return followups;
-      }
-
-      // Validate metadata structure before use
-      if (!isChatResultMetadata(result.metadata)) {
-        console.warn('Invalid metadata structure in chat result');
-        return followups;
-      }
-
-      const metadata = result.metadata;
-
-      if (metadata.command === 'plan') {
-        followups.push({
-          prompt: 'Show me pending issues',
-          label: '📋 View Issues',
-          command: 'issues'
-        });
-      } else if (metadata.command === 'issues' && metadata.count && metadata.count > 0) {
-        followups.push({
-          prompt: 'Start working on an issue',
-          label: '🚀 Start Work',
-          command: 'work'
-        });
-      } else if (metadata.command === 'explain' && !metadata.error) {
-        followups.push({
-          prompt: 'Explain more about this',
-          label: '💡 More Details'
-        });
-      }
-
-      // Always offer help
-      followups.push({
-        prompt: 'What can you help me with?',
-        label: '❓ Help',
-        command: ''
+  try {
+    // Check if chat API is available
+    if (!vscode.chat) {
+      console.error('VS Code Chat API is not available. Please ensure GitHub Copilot Chat extension is installed and enabled.');
+      vscode.window.showWarningMessage(
+        'Nanodex chat participant requires GitHub Copilot Chat. Please install and enable the GitHub Copilot Chat extension.',
+        'Learn More'
+      ).then(selection => {
+        if (selection === 'Learn More') {
+          vscode.env.openExternal(vscode.Uri.parse('https://marketplace.visualstudio.com/items?itemName=GitHub.copilot-chat'));
+        }
       });
-
-      return followups;
+      return;
     }
-  };
 
-  context.subscriptions.push(participant);
+    console.log('Registering nanodex chat participant...');
+    const participant = vscode.chat.createChatParticipant('nanodex', handleChatRequest);
+    console.log('Chat participant created successfully');
+
+    // Set icon if it exists (optional)
+    try {
+      const iconPath = vscode.Uri.joinPath(context.extensionUri, 'icon.png');
+      participant.iconPath = iconPath;
+    } catch (error) {
+      console.warn('Icon file not found, using default icon');
+    }
+
+    // Add slash commands
+    participant.followupProvider = {
+      provideFollowups(result: vscode.ChatResult, context: vscode.ChatContext, token: vscode.CancellationToken) {
+        const followups: vscode.ChatFollowup[] = [];
+
+        if (!result.metadata) {
+          return followups;
+        }
+
+        // Validate metadata structure before use
+        if (!isChatResultMetadata(result.metadata)) {
+          console.warn('Invalid metadata structure in chat result');
+          return followups;
+        }
+
+        const metadata = result.metadata;
+
+        if (metadata.command === 'plan') {
+          followups.push({
+            prompt: 'Show me pending issues',
+            label: '📋 View Issues',
+            command: 'issues'
+          });
+        } else if (metadata.command === 'issues' && metadata.count && metadata.count > 0) {
+          followups.push({
+            prompt: 'Start working on an issue',
+            label: '🚀 Start Work',
+            command: 'work'
+          });
+        } else if (metadata.command === 'explain' && !metadata.error) {
+          followups.push({
+            prompt: 'Explain more about this',
+            label: '💡 More Details'
+          });
+        }
+
+        // Always offer help
+        followups.push({
+          prompt: 'What can you help me with?',
+          label: '❓ Help',
+          command: ''
+        });
+
+        return followups;
+      }
+    };
+
+    context.subscriptions.push(participant);
+    console.log('Chat participant registered successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Failed to register chat participant:', errorMessage, error);
+    vscode.window.showErrorMessage(`Failed to register Nanodex chat participant: ${errorMessage}`);
+  }
 }
