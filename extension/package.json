@@ -2,7 +2,7 @@
   "name": "nanodex",
   "displayName": "nanodex",
   "description": "Structured context + compounding flows for predictable coding agents",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "publisher": "nanodex",
   "repository": {
@@ -80,6 +80,26 @@
       {
         "command": "nanodex.optimize",
         "title": "Optimize Database",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.genCommand",
+        "title": "Generate Custom Command",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.triage",
+        "title": "Triage Findings",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.resolveTodos",
+        "title": "Resolve TODOs",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.review",
+        "title": "Review Pull Request",
         "category": "Nanodex"
       }
     ],

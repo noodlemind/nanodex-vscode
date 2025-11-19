@@ -9,6 +9,10 @@ import { reindexCommand } from './commands/reindex.js';
 import { planCommand } from './commands/plan.js';
 import { workCommand } from './commands/work.js';
 import { selectModelCommand, selectChatStrategyCommand, showModelStatusCommand } from './commands/selectModel.js';
+import { genCommandCommand } from './commands/genCommand.js';
+import { triageCommand } from './commands/triage.js';
+import { resolveTodosCommand } from './commands/resolveTodos.js';
+import { reviewCommand } from './commands/review.js';
 import { registerChatParticipant } from './chat/participant.js';
 import { createStatusBarItem, disposeStatusBarItem } from './ui/statusBar.js';
 import { indexFile } from './core/indexer.js';
@@ -36,6 +40,10 @@ export function activate(context: vscode.ExtensionContext): void {
     const selectChatStrategyCommandReg = vscode.commands.registerCommand('nanodex.selectChatStrategy', selectChatStrategyCommand);
     const showModelStatusCommandReg = vscode.commands.registerCommand('nanodex.showModelStatus', showModelStatusCommand);
     const optimizeCommandReg = vscode.commands.registerCommand('nanodex.optimize', optimizeDatabaseCommand);
+    const genCommandCommandReg = vscode.commands.registerCommand('nanodex.genCommand', () => genCommandCommand(context));
+    const triageCommandReg = vscode.commands.registerCommand('nanodex.triage', () => triageCommand(context));
+    const resolveTodosCommandReg = vscode.commands.registerCommand('nanodex.resolveTodos', () => resolveTodosCommand(context));
+    const reviewCommandReg = vscode.commands.registerCommand('nanodex.review', () => reviewCommand(context));
 
     context.subscriptions.push(
       planCommandReg,
@@ -47,7 +55,11 @@ export function activate(context: vscode.ExtensionContext): void {
       selectModelCommandReg,
       selectChatStrategyCommandReg,
       showModelStatusCommandReg,
-      optimizeCommandReg
+      optimizeCommandReg,
+      genCommandCommandReg,
+      triageCommandReg,
+      resolveTodosCommandReg,
+      reviewCommandReg
     );
     console.log('Commands registered successfully');
 
