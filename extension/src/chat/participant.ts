@@ -11,6 +11,7 @@ import { selectRelevantContext, formatContext } from '../core/context.js';
 import { selectAgent, assemblePrompt } from '../core/router.js';
 import { listIssues } from '../core/issues.js';
 import { parseModelConfig } from '../core/modelUtils.js';
+import { discoverCustomFlows, getFlowChatCommand } from '../core/customFlows.js';
 
 // Constants
 const MAX_CONTEXT_DEPTH = 2;
@@ -149,6 +150,29 @@ async function handleChatRequest(
       return await handleExplainRequest(prompt, workspaceFolder, context, stream, token);
     } else if (command === 'issues') {
       return await handleIssuesRequest(workspaceFolder, stream);
+    } else if (command) {
+      // Check if it's a custom flow command
+      const customFlows = await discoverCustomFlows(workspaceFolder.uri.fsPath);
+      const customFlow = customFlows.find(flow => getFlowChatCommand(flow) === command);
+      
+      if (customFlow) {
+        return await handleCustomFlowRequest(customFlow, prompt, workspaceFolder, stream, token);
+      }
+      
+      // Unknown command
+      stream.markdown(`❓ Unknown command: \`/${command}\`\n\n`);
+      stream.markdown('Available commands:\n');
+      stream.markdown('- `/plan` - Create implementation plan\n');
+      stream.markdown('- `/work` - Start work on issue\n');
+      stream.markdown('- `/explain` - Explain code with context\n');
+      stream.markdown('- `/issues` - List all issues\n');
+      if (customFlows.length > 0) {
+        stream.markdown('\nCustom flows:\n');
+        for (const flow of customFlows) {
+          stream.markdown(`- \`/${getFlowChatCommand(flow)}\` - ${flow.description}\n`);
+        }
+      }
+      return { metadata: { command } };
     } else {
       // Default: general question with graph context
       return await handleGeneralRequest(prompt, workspaceFolder, context, stream, token);
@@ -408,6 +432,29 @@ async function handleGeneralRequest(
     stream.markdown(`\n\n❌ Error: ${errorMessage}`);
     return { metadata: { command: 'general', error: errorMessage } };
   }
+}
+
+/**
+ * Handle custom flow request
+ */
+async function handleCustomFlowRequest(
+  flow: any,
+  prompt: string,
+  workspaceFolder: vscode.WorkspaceFolder,
+  stream: vscode.ChatResponseStream,
+  token: vscode.CancellationToken
+): Promise<vscode.ChatResult> {
+  stream.markdown(`🔄 Running custom flow: **${flow.name}**\n\n`);
+  stream.markdown(`${flow.description}\n\n`);
+  
+  stream.markdown('To run this flow, use the **Nanodex: Run Custom Flow** command and select it from the list.\n\n');
+  
+  stream.button({
+    command: 'nanodex.runCustomFlow',
+    title: 'Run Custom Flow'
+  });
+  
+  return { metadata: { command: `custom:${flow.id}` } };
 }
 
 /**

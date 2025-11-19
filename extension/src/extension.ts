@@ -19,6 +19,8 @@ import { indexFile } from './core/indexer.js';
 import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
 import { optimizeDatabase } from './core/batchOps.js';
 import { registerModelChangeHandler } from './core/modelChangeHandler.js';
+import { createCustomFlowCommand } from './commands/createCustomFlow.js';
+import { registerCustomFlows, runCustomFlowPicker } from './core/customFlowRegistration.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -44,6 +46,17 @@ export function activate(context: vscode.ExtensionContext): void {
     const triageCommandReg = vscode.commands.registerCommand('nanodex.triage', () => triageCommand(context));
     const resolveTodosCommandReg = vscode.commands.registerCommand('nanodex.resolveTodos', () => resolveTodosCommand(context));
     const reviewCommandReg = vscode.commands.registerCommand('nanodex.review', () => reviewCommand(context));
+    
+    // Custom flow commands
+    const createCustomFlowCommandReg = vscode.commands.registerCommand('nanodex.createCustomFlow', () => createCustomFlowCommand(context));
+    const runCustomFlowCommandReg = vscode.commands.registerCommand('nanodex.runCustomFlow', async () => {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (workspaceFolder) {
+        await runCustomFlowPicker(context, workspaceFolder.uri.fsPath);
+      } else {
+        vscode.window.showErrorMessage('No workspace folder open');
+      }
+    });
 
     context.subscriptions.push(
       planCommandReg,
@@ -59,7 +72,9 @@ export function activate(context: vscode.ExtensionContext): void {
       genCommandCommandReg,
       triageCommandReg,
       resolveTodosCommandReg,
-      reviewCommandReg
+      reviewCommandReg,
+      createCustomFlowCommandReg,
+      runCustomFlowCommandReg
     );
     console.log('Commands registered successfully');
 
@@ -78,6 +93,19 @@ export function activate(context: vscode.ExtensionContext): void {
     // Setup file watchers for automatic reindexing
     console.log('Setting up file watchers...');
     setupFileWatchers(context);
+    
+    // Register custom flows
+    console.log('Registering custom flows...');
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+      registerCustomFlows(context, workspaceFolder.uri.fsPath).then(count => {
+        if (count > 0) {
+          console.log(`Registered ${count} custom flow(s)`);
+        }
+      }).catch(error => {
+        console.error('Failed to register custom flows:', error);
+      });
+    }
 
     console.log('nanodex extension activated successfully');
   } catch (error) {

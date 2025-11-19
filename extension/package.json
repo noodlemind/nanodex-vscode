@@ -2,7 +2,7 @@
   "name": "nanodex",
   "displayName": "nanodex",
   "description": "Structured context + compounding flows for predictable coding agents",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "publisher": "nanodex",
   "repository": {
@@ -102,6 +102,16 @@
         "command": "nanodex.review",
         "title": "Review Pull Request",
         "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.createCustomFlow",
+        "title": "Create Custom Flow",
+        "category": "Nanodex"
+      },
+      {
+        "command": "nanodex.runCustomFlow",
+        "title": "Run Custom Flow",
+        "category": "Nanodex"
       }
     ],
     "chatParticipants": [
@@ -197,6 +207,16 @@
             ".nanodex/instructions/**/*.instructions.md"
           ],
           "description": "Custom instruction file patterns"
+        },
+        "nanodex.flows.paths": {
+          "type": "array",
+          "default": [
+            ".nanodex/flows/*.flow.yaml",
+            ".nanodex/flows/*.flow.yml",
+            "flows/*.flow.yaml",
+            "flows/*.flow.yml"
+          ],
+          "description": "Custom flow file patterns"
         }
       }
     }

@@ -5,6 +5,23 @@ All notable changes to the nanodex extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-11-19
+
+### Added
+- **Custom Flow Runner**: Create and run custom flows from your workspace
+  - `Nanodex: Create Custom Flow` command to generate flow templates
+  - `Nanodex: Run Custom Flow` command to execute custom flows
+  - Automatic discovery of flows in `.nanodex/flows/` and `flows/` directories
+  - Dynamic command registration for discovered custom flows
+  - Chat integration: run custom flows via `@nanodex /<flow-name>`
+  - Flow validation with helpful error messages
+  - Configuration option `nanodex.flows.paths` for custom flow locations
+- Documentation for custom flows in README
+
+### Changed
+- Updated README with Custom Flows section
+- Enhanced chat participant to support custom flow slash commands
+
 ## [Unreleased]
 
 ### Added

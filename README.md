@@ -46,9 +46,11 @@ nanodex builds a local **knowledge graph** of your workspace (Context Engineerin
 
 - **Nanodex: Plan** — gather goal/acceptance/constraints → write `.nanodex/issues/ISSUE-*.yml`  
 - **Nanodex: Work** — pick issue → run flow → propose edits as preview
+- **Nanodex: Create Custom Flow** — generate a new custom flow template
+- **Nanodex: Run Custom Flow** — execute a custom flow from your workspace
 
 **Operational (optional):** Index Workspace · Reindex Changed Files · Graph Stats · Clear Index · Select Default Model  
-> Chat equivalents: `@nanodex plan`, `@nanodex work ISSUE‑…`, etc.
+> Chat equivalents: `@nanodex plan`, `@nanodex work ISSUE‑…`, `@nanodex /<custom-flow>`, etc.
 
 ---
 
@@ -62,6 +64,52 @@ nanodex builds a local **knowledge graph** of your workspace (Context Engineerin
 {
   "nanodex.defaultModel": "copilot/gpt-4o-lite",
   "nanodex.chat.modelStrategy": "useChatModel"   // or "useConfiguredModel"
+}
+```
+
+---
+
+## Custom Flows
+
+You can create custom flows in your workspace to automate specialized tasks.
+
+**Creating a Custom Flow:**
+
+1. Run **Nanodex: Create Custom Flow**
+2. Enter a name and description
+3. Choose location (`.nanodex/flows/` recommended)
+4. Edit the generated YAML file to customize steps and agents
+
+**Flow Structure:**
+
+```yaml
+id: custom.flow.my-flow
+intent: "What this flow does"
+inputs:
+  - name: goal
+    required: true
+steps:
+  - name: "Step 1"
+    agentId: "nanodex.specialist.repo-research-analyst"
+    prompt: "Analyze {goal}..."
+  - name: "Step 2"
+    agentId: "nanodex.specialist.best-practices-researcher"
+    prompt: "Create plan for {goal}..."
+```
+
+**Running Custom Flows:**
+
+- Command Palette: **Nanodex: Run Custom Flow**
+- Chat: `@nanodex /<flow-name>`
+
+**Configuration:**
+
+```jsonc
+{
+  "nanodex.flows.paths": [
+    ".nanodex/flows/*.flow.yaml",
+    "flows/*.flow.yaml"
+  ]
 }
 ```
 
