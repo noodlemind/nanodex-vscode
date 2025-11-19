@@ -208,7 +208,7 @@
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js",
-    "package": "vsce package"
+    "package": "pnpm run build && node scripts/package-vsix.cjs"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
@@ -221,6 +221,7 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.1",
+    "adm-zip": "^0.5.16",
     "eslint": "^9.0.0",
     "mocha": "^10.8.2",
     "typescript": "^5.7.0"
