@@ -196,7 +196,8 @@ try {
       if (stats.isDirectory()) {
         addDirectoryToZip(zip, fullPath, zipEntryPath);
       } else {
-        zip.addLocalFile(fullPath, path.dirname(zipEntryPath) || undefined);
+        const zipDir = path.dirname(zipEntryPath);
+        zip.addLocalFile(fullPath, zipDir === '.' ? undefined : zipDir);
       }
     }
   }
