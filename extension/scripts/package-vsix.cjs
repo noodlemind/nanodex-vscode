@@ -91,8 +91,61 @@ function copyDirRecursive(src, dest) {
   }
 }
 
-// Copy each production dependency
+/**
+ * Get all dependencies (including transitive) for a package
+ * Returns a Map of depName -> depPath
+ */
+function getAllDependencies(packagePath) {
+  const allDeps = new Map(); // depName -> path where it was found
+  const visited = new Set();
+  
+  function collectDeps(pkgPath) {
+    const pkgJsonPath = path.join(pkgPath, 'package.json');
+    
+    if (!fs.existsSync(pkgJsonPath) || visited.has(pkgPath)) {
+      return;
+    }
+    
+    visited.add(pkgPath);
+    
+    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    const deps = pkgJson.dependencies || {};
+    
+    for (const depName of Object.keys(deps)) {
+      if (!allDeps.has(depName)) {
+        // Look for this dependency in multiple locations
+        const searchPaths = [
+          path.join(pkgPath, 'node_modules', depName),
+          path.join(extensionDir, 'node_modules', depName),
+          // pnpm workspace root
+          path.join(extensionDir, '..', 'node_modules', depName),
+          // pnpm sibling packages (for packages in .pnpm store)
+          // If pkgPath is like .../node_modules/.pnpm/pkg@version/node_modules/pkg
+          // then deps are at .../node_modules/.pnpm/pkg@version/node_modules/depName
+          path.join(pkgPath, '..', depName)
+        ];
+        
+        for (const depPath of searchPaths) {
+          if (fs.existsSync(depPath)) {
+            const realDepPath = fs.realpathSync(depPath);
+            allDeps.set(depName, realDepPath);
+            collectDeps(realDepPath);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  collectDeps(packagePath);
+  return allDeps;
+}
+
+// Copy each production dependency and their transitive dependencies
 const dependencies = packageJson.dependencies || {};
+const allDepsMap = new Map(); // depName -> path
+
+// First, collect all dependencies
 for (const depName of Object.keys(dependencies)) {
   const depSource = path.join(extensionDir, 'node_modules', depName);
   
@@ -101,6 +154,21 @@ for (const depName of Object.keys(dependencies)) {
     process.exit(1);
   }
   
+  const realDepPath = fs.realpathSync(depSource);
+  allDepsMap.set(depName, realDepPath);
+  
+  // Get transitive dependencies
+  const transitiveDeps = getAllDependencies(realDepPath);
+  for (const [transDep, transDepPath] of transitiveDeps) {
+    if (!allDepsMap.has(transDep)) {
+      allDepsMap.set(transDep, transDepPath);
+    }
+  }
+}
+
+// Now copy all collected dependencies
+console.log(`  Found ${allDepsMap.size} total dependencies (including transitive)`);
+for (const [depName, depSource] of allDepsMap) {
   console.log(`  Copying ${depName}...`);
   const depDest = path.join(targetNodeModules, depName);
   copyDirRecursive(depSource, depDest);
