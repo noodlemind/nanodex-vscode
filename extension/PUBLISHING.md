@@ -63,35 +63,22 @@ ext install nanodex.nanodex
    ```bash
    cd extension
 
-   # Build extension
-   pnpm run build
-
-   # Package without dependencies (we'll add manually)
-   pnpm exec vsce package --no-dependencies
-
-   # Rebuild native module for Electron 37 (VS Code 1.105+)
-   npx @electron/rebuild --version=37.6.0 \
-     --module-dir=../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-
-   # Repackage with dependencies
-   mkdir -p vsix_extract
-   cd vsix_extract
-   unzip -q ../nanodex-0.5.0.vsix
-
-   mkdir -p extension/node_modules
-   cp -r ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3 extension/node_modules/
-   cp -r ../../node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml extension/node_modules/
-
-   cd ..
-   rm nanodex-0.5.0.vsix
-   cd vsix_extract
-   zip -q -r ../nanodex-0.5.0.vsix .
-   cd ..
-   rm -rf vsix_extract
+   # Package extension (automatically includes dependencies)
+   pnpm run package
 
    # Verify package size
-   ls -lh nanodex-0.5.0.vsix
+   ls -lh nanodex-*.vsix
    ```
+
+   The `pnpm run package` command automatically:
+   - Builds the extension
+   - Packages without dependencies initially
+   - Extracts the VSIX
+   - Copies all runtime dependencies (resolving pnpm symlinks)
+   - Includes all transitive dependencies
+   - Repackages the VSIX with dependencies bundled
+
+   No manual dependency copying needed!
 
 2. Create GitHub Release:
    ```bash
@@ -150,35 +137,10 @@ jobs:
           cd extension
           pnpm install
 
-      - name: Build extension
-        run: |
-          cd extension
-          pnpm run build
-
-      - name: Rebuild native modules
-        run: |
-          cd extension
-          npx @electron/rebuild --version=37.6.0 \
-            --module-dir=../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-
       - name: Package extension
         run: |
           cd extension
-          pnpm exec vsce package --no-dependencies
-
-          # Add dependencies manually
-          mkdir -p vsix_extract
-          cd vsix_extract
-          unzip -q ../nanodex-*.vsix
-          mkdir -p extension/node_modules
-          cp -r ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3 extension/node_modules/
-          cp -r ../../node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml extension/node_modules/
-          cd ..
-          rm nanodex-*.vsix
-          cd vsix_extract
-          zip -q -r ../nanodex-${{ github.ref_name }}.vsix .
-          cd ..
-          rm -rf vsix_extract
+          pnpm run package
 
       - name: Publish to Marketplace
         if: success()
@@ -229,9 +191,8 @@ cd extension
 # Create pre-release version
 npm version 0.6.0-beta.1
 
-# Package
-pnpm exec vsce package --no-dependencies
-# ... add dependencies as shown above ...
+# Package (dependencies automatically included)
+pnpm run package
 
 # Publish to GitHub only
 git tag -a v0.6.0-beta.1 -m "Beta release"
@@ -248,16 +209,22 @@ gh release create v0.6.0-beta.1 --prerelease
 - [ ] CHANGELOG.md updated
 - [ ] Icon and README look good
 - [ ] Extension tested locally (`code --install-extension nanodex-x.x.x.vsix`)
-- [ ] Native modules rebuilt for Electron 37
 - [ ] LICENSE file present
+- [ ] Dependencies bundled correctly (verify VSIX size ~4MB)
 
 ---
 
 ## Troubleshooting
 
+**Packaging errors:**
+- Ensure `pnpm install` has been run to install all dependencies including `adm-zip`
+- Check that `scripts/package-vsix.cjs` exists and is executable
+- Verify workspace structure (extension should be in monorepo with pnpm workspace)
+
 **Native module errors:**
-- Ensure better-sqlite3 rebuilt for Electron 37.6.0
-- Check NODE_MODULE_VERSION matches VS Code version
+- The packaging script automatically includes the pre-built better-sqlite3 binary
+- If you see native module errors, ensure you're using the packaged VSIX (not running from source)
+- VS Code uses Electron 37.6.0 (v1.105+) - the pre-built binaries should work
 
 **Marketplace publishing fails:**
 - Verify PAT hasn't expired
@@ -265,5 +232,6 @@ gh release create v0.6.0-beta.1 --prerelease
 - Ensure icon.png is under 1MB
 
 **Large package size:**
-- Review included files with `vsce ls --tree`
-- Add unwanted files to `.vscodeignore`
+- Expected size is ~4MB (includes better-sqlite3 native binary and all dependencies)
+- Review included files: `unzip -l nanodex-*.vsix | less`
+- Add unwanted files to `.vscodeignore` if needed
