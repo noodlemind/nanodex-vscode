@@ -208,7 +208,14 @@
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js",
-    "package": "pnpm run build && node scripts/package-vsix.cjs"
+    "package": "pnpm run build && node scripts/package-vsix.cjs",
+    "package:all": "pnpm run build && node scripts/package-vsix.cjs --all-platforms",
+    "package:win-x64": "pnpm run build && node scripts/package-vsix.cjs --target win32-x64",
+    "package:win-arm64": "pnpm run build && node scripts/package-vsix.cjs --target win32-arm64",
+    "package:linux-x64": "pnpm run build && node scripts/package-vsix.cjs --target linux-x64",
+    "package:linux-arm64": "pnpm run build && node scripts/package-vsix.cjs --target linux-arm64",
+    "package:mac-x64": "pnpm run build && node scripts/package-vsix.cjs --target darwin-x64",
+    "package:mac-arm64": "pnpm run build && node scripts/package-vsix.cjs --target darwin-arm64"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
