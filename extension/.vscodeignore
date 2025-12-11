@@ -21,15 +21,12 @@ tsconfig.json
 # Documentation (development only)
 CONTRIBUTING.md
 
-# Node modules (bundled if needed)
+# Build scripts
+scripts/**
+
+# Node modules - exclude pnpm symlinks, include bundled dependencies
 .pnpm-store/
 node_modules/**
-!node_modules/better-sqlite3
-!node_modules/better-sqlite3/**
-!node_modules/glob
-!node_modules/glob/**
-!node_modules/js-yaml
-!node_modules/js-yaml/**
 
 # Git
 .git/

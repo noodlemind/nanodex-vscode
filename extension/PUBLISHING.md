@@ -59,39 +59,44 @@ ext install nanodex.nanodex
 
 **For maintainers:**
 
-1. Create release package:
+1. Create release packages:
    ```bash
    cd extension
 
-   # Build extension
-   pnpm run build
+   # Build for all platforms (recommended for marketplace release)
+   pnpm run package:all
 
-   # Package without dependencies (we'll add manually)
-   pnpm exec vsce package --no-dependencies
+   # Or build for specific platforms
+   pnpm run package:win-x64      # Windows x64
+   pnpm run package:win-arm64    # Windows ARM64
+   pnpm run package:linux-x64    # Linux x64
+   pnpm run package:linux-arm64  # Linux ARM64
+   pnpm run package:mac-x64      # macOS Intel
+   pnpm run package:mac-arm64    # macOS Apple Silicon
 
-   # Rebuild native module for Electron 37 (VS Code 1.105+)
-   npx @electron/rebuild --version=37.6.0 \
-     --module-dir=../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
+   # Or build universal (current platform only)
+   pnpm run package
 
-   # Repackage with dependencies
-   mkdir -p vsix_extract
-   cd vsix_extract
-   unzip -q ../nanodex-0.5.0.vsix
-
-   mkdir -p extension/node_modules
-   cp -r ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3 extension/node_modules/
-   cp -r ../../node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml extension/node_modules/
-
-   cd ..
-   rm nanodex-0.5.0.vsix
-   cd vsix_extract
-   zip -q -r ../nanodex-0.5.0.vsix .
-   cd ..
-   rm -rf vsix_extract
-
-   # Verify package size
-   ls -lh nanodex-0.5.0.vsix
+   # Verify packages
+   ls -lh nanodex-*.vsix
    ```
+
+   **Platform-specific packaging:**
+   - Each platform build includes the correct native binary for better-sqlite3
+   - Downloads platform-specific prebuilds automatically
+   - Ensures the extension works on offline/airgapped devices
+   - VSIX files are named: `nanodex-<platform>-<version>.vsix`
+
+   The packaging command automatically:
+   - Builds the extension
+   - Downloads correct platform-specific native binaries
+   - Packages without dependencies initially
+   - Extracts the VSIX
+   - Copies all runtime dependencies (resolving pnpm symlinks)
+   - Includes all transitive dependencies
+   - Repackages the VSIX with dependencies bundled
+
+   No manual dependency copying needed!
 
 2. Create GitHub Release:
    ```bash
@@ -99,9 +104,9 @@ ext install nanodex.nanodex
    git tag -a v0.5.0 -m "Release v0.5.0"
    git push origin v0.5.0
 
-   # Create release on GitHub
+   # Create release on GitHub with all platform builds
    gh release create v0.5.0 \
-     extension/nanodex-0.5.0.vsix \
+     extension/nanodex-*-0.5.0.vsix \
      --title "v0.5.0" \
      --notes "Release notes here"
    ```
@@ -150,41 +155,19 @@ jobs:
           cd extension
           pnpm install
 
-      - name: Build extension
+      - name: Package extension for all platforms
         run: |
           cd extension
-          pnpm run build
-
-      - name: Rebuild native modules
-        run: |
-          cd extension
-          npx @electron/rebuild --version=37.6.0 \
-            --module-dir=../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
-
-      - name: Package extension
-        run: |
-          cd extension
-          pnpm exec vsce package --no-dependencies
-
-          # Add dependencies manually
-          mkdir -p vsix_extract
-          cd vsix_extract
-          unzip -q ../nanodex-*.vsix
-          mkdir -p extension/node_modules
-          cp -r ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3 extension/node_modules/
-          cp -r ../../node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml extension/node_modules/
-          cd ..
-          rm nanodex-*.vsix
-          cd vsix_extract
-          zip -q -r ../nanodex-${{ github.ref_name }}.vsix .
-          cd ..
-          rm -rf vsix_extract
+          pnpm run package:all
 
       - name: Publish to Marketplace
         if: success()
         run: |
           cd extension
-          pnpm exec vsce publish --packagePath nanodex-*.vsix
+          # Publish all platform-specific builds
+          for vsix in nanodex-*-*.vsix; do
+            pnpm exec vsce publish --packagePath "$vsix"
+          done
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
@@ -195,6 +178,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+**Note:** The marketplace will automatically serve the correct platform-specific VSIX to users based on their platform.
 
 **Setup secrets:**
 - Go to GitHub repo → Settings → Secrets and variables → Actions
@@ -229,9 +214,8 @@ cd extension
 # Create pre-release version
 npm version 0.6.0-beta.1
 
-# Package
-pnpm exec vsce package --no-dependencies
-# ... add dependencies as shown above ...
+# Package (dependencies automatically included)
+pnpm run package
 
 # Publish to GitHub only
 git tag -a v0.6.0-beta.1 -m "Beta release"
@@ -248,22 +232,38 @@ gh release create v0.6.0-beta.1 --prerelease
 - [ ] CHANGELOG.md updated
 - [ ] Icon and README look good
 - [ ] Extension tested locally (`code --install-extension nanodex-x.x.x.vsix`)
-- [ ] Native modules rebuilt for Electron 37
 - [ ] LICENSE file present
+- [ ] Dependencies bundled correctly (verify VSIX size ~4MB)
 
 ---
 
 ## Troubleshooting
 
+**Packaging errors:**
+- Ensure `pnpm install` has been run to install all dependencies including `adm-zip`
+- Check that `scripts/package-vsix.cjs` exists and is executable
+- Verify workspace structure (extension should be in monorepo with pnpm workspace)
+
 **Native module errors:**
-- Ensure better-sqlite3 rebuilt for Electron 37.6.0
-- Check NODE_MODULE_VERSION matches VS Code version
+- The packaging script automatically downloads platform-specific better-sqlite3 binaries
+- Each platform build includes the correct native binary for that platform
+- Use `pnpm run package:all` to build for all platforms
+- For marketplace release, publish all platform-specific builds
+- VS Code will automatically serve the correct platform VSIX to users
+
+**Cross-platform builds:**
+- `pnpm run package:all` creates VSIXs for all major platforms
+- Each VSIX is named: `nanodex-<platform>-<version>.vsix`
+- Platforms: win32-x64, win32-arm64, linux-x64, linux-arm64, darwin-x64, darwin-arm64
+- All use Electron 37 ABI (VS Code 1.105+)
 
 **Marketplace publishing fails:**
 - Verify PAT hasn't expired
 - Check publisher name matches package.json
 - Ensure icon.png is under 1MB
+- Publish all platform builds for full coverage
 
 **Large package size:**
-- Review included files with `vsce ls --tree`
-- Add unwanted files to `.vscodeignore`
+- Expected size is ~4-5MB per platform (includes better-sqlite3 native binary and all dependencies)
+- Review included files: `unzip -l nanodex-*.vsix | less`
+- Add unwanted files to `.vscodeignore` if needed

@@ -25,3 +25,5 @@ npm-debug.log*
 # Temporary
 .tmp/
 .temp/
+.vsix_temp/
+node_modules_bundled/
