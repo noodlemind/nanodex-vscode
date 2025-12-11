@@ -169,7 +169,7 @@
           "properties": {
             "status": {
               "type": "string",
-              "enum": ["pending", "done", "cancelled"],
+              "enum": ["pending", "in_progress", "completed", "cancelled"],
               "description": "Optional status filter for issues."
             }
           }
