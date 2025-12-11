@@ -4,11 +4,11 @@
   "private": true,
   "description": "nanodex VS Code Extension Workspace",
   "scripts": {
-    "build": "pnpm --filter extension build",
-    "watch": "pnpm --filter extension watch",
-    "test": "pnpm --filter extension test",
-    "lint": "pnpm --filter extension lint",
-    "package": "pnpm --filter extension package"
+    "build": "pnpm --filter ./extension build",
+    "watch": "pnpm --filter ./extension watch",
+    "test": "pnpm --filter ./extension test",
+    "lint": "pnpm --filter ./extension lint",
+    "package": "pnpm --filter ./extension package"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
