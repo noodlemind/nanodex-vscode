@@ -52,6 +52,23 @@ nanodex builds a local **knowledge graph** of your workspace (Context Engineerin
 
 ---
 
+## How this differs from VS Code AI features (incl. Planning)
+
+- **Graph‑backed context vs. generic chat**: nanodex builds a **workspace knowledge graph** and injects minimal, relevant subgraphs into prompts. VS Code AI surfaces do not provide this graph extraction today.
+- **Compounding Plan/Work flows**: nanodex orchestrates **multi‑step agents** (Plan → Work) with workspace edits as previews. The built‑in planner is single‑surface; it does not maintain issue artifacts or run graph‑scoped Work phases.
+- **Sticky instruction merging**: `AGENTS.md` and `*.instructions.md` are merged into agent prompts automatically, keeping **repo‑specific guidance** bound to flows. Native chat/planning requires manual reminders per session.
+- **Local‑first index + privacy**: graph + issues stay in `.nanodex/`; only your chosen model provider sees prompts. VS Code AI features depend on the provider’s own data path.
+
+### Using new VS Code planning with nanodex
+
+- You can still run **Nanodex: Plan/Work** while using the built‑in planner for other tasks; they are independent.
+- If you prefer VS Code’s planner UI but want nanodex context, trigger **Nanodex: Work** on an existing `.nanodex/issues/ISSUE-*.yml` (or chat `@nanodex work ISSUE‑…`) to reuse the graph‑aware Work phase.
+- To align with the new planner, consider setting your **default model** to match the **Chat** model so both share capabilities, and keep auto‑indexing on for fresh graph context.
+
+**AI SDK integration:** nanodex now registers VS Code **Language Model Tools** `nanodex.context` (graph context) and `nanodex.issues` (Plan/Work issues). Built‑in planners or other participants can call these tools directly to reuse nanodex context without switching surfaces.
+
+---
+
 ## Model behavior
 
 - **Chat (`@nanodex`)** → uses the **Chat panel’s active model** (user‑selected)  

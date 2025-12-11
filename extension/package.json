@@ -130,6 +130,52 @@
         ]
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "nanodex.context",
+        "title": "Nanodex Graph Context",
+        "description": "Retrieve relevant workspace graph context for a goal or question.",
+        "tags": ["context", "codebase"],
+        "inputSchema": {
+          "type": "object",
+          "required": ["prompt"],
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "User goal, question, or issue to anchor graph context against."
+            },
+            "maxDepth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "description": "Traversal depth for graph context."
+            },
+            "maxTokens": {
+              "type": "integer",
+              "minimum": 500,
+              "maximum": 8000,
+              "description": "Maximum token budget for context assembly."
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex.issues",
+        "title": "Nanodex Issues",
+        "description": "List Nanodex Plan/Work issues for reuse in the VS Code planner or other participants.",
+        "tags": ["issues", "planning"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed", "cancelled"],
+              "description": "Optional status filter for issues."
+            }
+          }
+        }
+      }
+    ],
     "configuration": {
       "title": "nanodex",
       "properties": {

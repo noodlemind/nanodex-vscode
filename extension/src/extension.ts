@@ -19,6 +19,8 @@ import { indexFile } from './core/indexer.js';
 import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
 import { optimizeDatabase } from './core/batchOps.js';
 import { registerModelChangeHandler } from './core/modelChangeHandler.js';
+import { selectRelevantContext, formatContext } from './core/context.js';
+import { listIssues } from './core/issues.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -74,6 +76,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // Register model change handler
     console.log('Registering model change handler...');
     registerModelChangeHandler(context);
+
+    // Register Language Model tools so any participant can call Nanodex context
+    console.log('Registering language model tools...');
+    registerLanguageModelTools(context);
 
     // Setup file watchers for automatic reindexing
     console.log('Setting up file watchers...');
@@ -232,6 +238,135 @@ async function optimizeDatabaseCommand(): Promise<void> {
       }
     }
   );
+}
+
+function registerLanguageModelTools(context: vscode.ExtensionContext): void {
+  const contextTool = vscode.lm.registerTool<{
+    prompt: string;
+    maxDepth?: number;
+    maxTokens?: number;
+  }>('nanodex.context', {
+    prepareInvocation({ input }) {
+      const summary = input.prompt.length > 60 ? `${input.prompt.slice(0, 57)}...` : input.prompt;
+      return { invocationMessage: `Gathering Nanodex context for "${summary}"` };
+    },
+    async invoke({ input }, token) {
+      try {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        if (!workspaceRoot) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart('No workspace folder is open; unable to query Nanodex context.')
+          ]);
+        }
+
+        if (token.isCancellationRequested) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart('Context gathering cancelled.')
+          ]);
+        }
+
+        const contextText = await buildGraphContext(
+          workspaceRoot,
+          input.prompt,
+          input.maxDepth,
+          input.maxTokens,
+          token
+        );
+
+        if (!contextText) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart('No Nanodex index found. Run "Nanodex: Index Workspace" first.')
+          ]);
+        }
+
+        return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(contextText)]);
+      } catch (err: any) {
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart(`Error gathering Nanodex context: ${err?.message ?? String(err)}`)
+        ]);
+      }
+    }
+  });
+
+  const issuesTool = vscode.lm.registerTool<{ status?: string }>('nanodex.issues', {
+    prepareInvocation({ input }) {
+      const statusLabel = input.status ? ` (status: ${input.status})` : '';
+      return { invocationMessage: `Collecting Nanodex issues${statusLabel}` };
+    },
+    async invoke({ input }, token) {
+      try {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        if (!workspaceRoot) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart('No workspace folder is open; unable to read Nanodex issues.')
+          ]);
+        }
+
+        if (token.isCancellationRequested) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart('Issue listing cancelled.')
+          ]);
+        }
+
+        const issues = await listIssues(workspaceRoot);
+        const filteredIssues = input.status ? issues.filter(issue => issue.status === input.status) : issues;
+
+        if (filteredIssues.length === 0) {
+          const hint = input.status ? ` with status "${input.status}"` : '';
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart(`No Nanodex issues found${hint}.`)
+          ]);
+        }
+
+        const summary = filteredIssues
+          .map(issue => `- ${issue.id}: ${issue.title} (${issue.status})`)
+          .join('\n');
+
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart(`Nanodex issues:\n${summary}`)
+        ]);
+      } catch (error) {
+        console.error('Failed to list Nanodex issues:', error);
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart(`Error reading Nanodex issues: ${error instanceof Error ? error.message : String(error)}`)
+        ]);
+      }
+    }
+  });
+
+  context.subscriptions.push(contextTool, issuesTool);
+}
+
+async function buildGraphContext(
+  workspaceRoot: string,
+  prompt: string,
+  maxDepth: number = 2,
+  maxTokens: number = 2500,
+  token?: vscode.CancellationToken
+): Promise<string> {
+  if (token?.isCancellationRequested) {
+    return '';
+  }
+
+  const dbPath = path.join(workspaceRoot, '.nanodex', 'graph.sqlite');
+
+  if (!fs.existsSync(dbPath)) {
+    return '';
+  }
+
+  let db: Database.Database | undefined;
+  try {
+    db = new Database(dbPath, { readonly: true });
+    const contextResult = selectRelevantContext(prompt, db, maxDepth, maxTokens);
+    return formatContext(contextResult);
+  } catch (error) {
+    console.error('Failed to query graph context:', error);
+    return '';
+  } finally {
+    db?.close();
+  }
 }
 
 async function processPendingIndexes(workspaceRoot: string, dbPath: string): Promise<void> {
