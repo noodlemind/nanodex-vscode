@@ -218,7 +218,7 @@
     "package:mac-arm64": "pnpm run build && node scripts/package-vsix.cjs --target darwin-arm64"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
@@ -226,7 +226,7 @@
     "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "@vscode/test-electron": "^2.4.1",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.2.1",
     "adm-zip": "^0.5.16",
     "eslint": "^9.0.0",
@@ -234,7 +234,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^12.5.0",
     "js-yaml": "^4.1.0"
   }
 }
