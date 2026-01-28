@@ -11,7 +11,8 @@ import {
   formatToolError,
   createSuccessResult,
   createErrorResult,
-  checkCancellation
+  checkCancellation,
+  validateId
 } from './utils.js';
 
 export class NanodexUpdateIssueStatusTool implements vscode.LanguageModelTool<UpdateIssueStatusInput> {
@@ -24,6 +25,10 @@ export class NanodexUpdateIssueStatusTool implements vscode.LanguageModelTool<Up
     // Check cancellation
     const cancelled = checkCancellation(token);
     if (cancelled) return cancelled;
+
+    // Validate issue ID format (defense-in-depth)
+    const idError = validateId(issueId, 'Issue');
+    if (idError) return idError;
 
     // Validate status
     const validStatuses = ['pending', 'in_progress', 'completed'];

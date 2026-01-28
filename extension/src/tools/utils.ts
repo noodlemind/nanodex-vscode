@@ -23,6 +23,45 @@ export const MAX_SYMBOL_NAME_LENGTH = 500;
 export const MAX_FILE_PATH_LENGTH = 1000;
 
 /**
+ * Maximum allowed length for issue/todo IDs
+ */
+export const MAX_ID_LENGTH = 50;
+
+/**
+ * Pattern for valid issue/todo IDs - alphanumeric, underscore, hyphen only
+ */
+const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+/**
+ * Validate issue/todo ID format and return error if invalid
+ * Defense-in-depth validation for LM tools layer
+ */
+export function validateId(
+  id: string,
+  idType: 'Issue' | 'Todo'
+): vscode.LanguageModelToolResult | null {
+  if (!id || typeof id !== 'string') {
+    return createErrorResult(`Error: ${idType} ID is required.`);
+  }
+  if (id.length > MAX_ID_LENGTH) {
+    return createErrorResult(
+      `Error: ${idType} ID exceeds maximum length of ${MAX_ID_LENGTH} characters.`
+    );
+  }
+  if (!ID_PATTERN.test(id)) {
+    return createErrorResult(
+      `Error: ${idType} ID contains invalid characters. Only alphanumeric, underscore, and hyphen are allowed.`
+    );
+  }
+  if (id.includes('..')) {
+    return createErrorResult(
+      `Error: ${idType} ID contains invalid path sequence.`
+    );
+  }
+  return null;
+}
+
+/**
  * Workspace context for tool operations
  */
 export interface WorkspaceContext {

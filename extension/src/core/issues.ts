@@ -34,6 +34,25 @@ export interface Issue {
 }
 
 /**
+ * Issue ID validation pattern - alphanumeric, underscore, hyphen only
+ */
+const ISSUE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MAX_ISSUE_ID_LENGTH = 50;
+
+/**
+ * Validate issue ID format to prevent path traversal attacks
+ */
+export function validateIssueId(issueId: string): boolean {
+  return (
+    typeof issueId === 'string' &&
+    issueId.length > 0 &&
+    issueId.length <= MAX_ISSUE_ID_LENGTH &&
+    ISSUE_ID_PATTERN.test(issueId) &&
+    !issueId.includes('..')
+  );
+}
+
+/**
  * Get the issues directory path
  */
 function getIssuesDir(workspaceRoot: string): string {
@@ -41,10 +60,22 @@ function getIssuesDir(workspaceRoot: string): string {
 }
 
 /**
- * Get the full path for an issue file
+ * Get the full path for an issue file with path traversal protection
  */
 export function getIssuePath(workspaceRoot: string, issueId: string): string {
-  return path.join(getIssuesDir(workspaceRoot), `${issueId}.yml`);
+  if (!validateIssueId(issueId)) {
+    throw new Error(`Invalid issue ID format: ${issueId}`);
+  }
+
+  const issuesDir = path.resolve(getIssuesDir(workspaceRoot));
+  const filePath = path.resolve(path.join(issuesDir, `${issueId}.yml`));
+
+  // Verify resolved path is within issues directory (path containment check)
+  if (!filePath.startsWith(issuesDir + path.sep)) {
+    throw new Error(`Invalid issue path: path traversal detected`);
+  }
+
+  return filePath;
 }
 
 /**
@@ -183,8 +214,7 @@ export async function saveIssue(
   issue: Issue
 ): Promise<string> {
   await ensureIssuesDir(workspaceRoot);
-  const issuesDir = getIssuesDir(workspaceRoot);
-  const filePath = path.join(issuesDir, `${issue.id}.yml`);
+  const filePath = getIssuePath(workspaceRoot, issue.id);
 
   const yamlContent = yaml.dump(issue, {
     indent: 2,
@@ -208,7 +238,7 @@ export async function loadIssue(
 
   try {
     const content = await fsp.readFile(filePath, 'utf-8');
-    const parsed = yaml.load(content);
+    const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA });
 
     if (!isValidIssue(parsed)) {
       console.error(`Invalid issue structure in ${filePath}`);
@@ -244,7 +274,7 @@ export async function listIssues(
       const filePath = path.join(issuesDir, file);
       try {
         const content = await fsp.readFile(filePath, 'utf-8');
-        const parsed = yaml.load(content);
+        const parsed = yaml.load(content, { schema: yaml.JSON_SCHEMA });
 
         if (isValidIssue(parsed)) {
           issues.push(parsed);
@@ -291,8 +321,7 @@ export async function deleteIssue(
   workspaceRoot: string,
   issueId: string
 ): Promise<void> {
-  const issuesDir = getIssuesDir(workspaceRoot);
-  const filePath = path.join(issuesDir, `${issueId}.yml`);
+  const filePath = getIssuePath(workspaceRoot, issueId);
 
   if (fs.existsSync(filePath)) {
     await fsp.unlink(filePath);

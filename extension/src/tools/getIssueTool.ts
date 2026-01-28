@@ -11,7 +11,8 @@ import {
   formatToolError,
   createSuccessResult,
   createErrorResult,
-  checkCancellation
+  checkCancellation,
+  validateId
 } from './utils.js';
 
 export class NanodexGetIssueTool implements vscode.LanguageModelTool<GetIssueInput> {
@@ -24,6 +25,10 @@ export class NanodexGetIssueTool implements vscode.LanguageModelTool<GetIssueInp
     // Check cancellation
     const cancelled = checkCancellation(token);
     if (cancelled) return cancelled;
+
+    // Validate issue ID format (defense-in-depth)
+    const idError = validateId(issueId, 'Issue');
+    if (idError) return idError;
 
     // Get workspace context
     const wsContext = getWorkspaceContext();
