@@ -3,15 +3,19 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import Database from 'better-sqlite3';
 import { selectRelevantContext, formatContext } from '../core/context.js';
-
-interface GraphQueryInput {
-  query: string;
-  depth?: number;
-}
+import { GraphQueryInput } from '../core/types.js';
+import {
+  getDatabaseContext,
+  isErrorResult,
+  formatToolError,
+  createSuccessResult,
+  createErrorResult,
+  withDatabase,
+  validateInputLength,
+  checkCancellation,
+  MAX_QUERY_LENGTH
+} from './utils.js';
 
 export class NanodexGraphQueryTool implements vscode.LanguageModelTool<GraphQueryInput> {
   async invoke(
@@ -20,60 +24,54 @@ export class NanodexGraphQueryTool implements vscode.LanguageModelTool<GraphQuer
   ): Promise<vscode.LanguageModelToolResult> {
     const { query, depth = 2 } = options.input;
 
+    // Check cancellation
+    const cancelled = checkCancellation(token);
+    if (cancelled) return cancelled;
+
+    // Validate input length
+    const lengthError = validateInputLength(query, MAX_QUERY_LENGTH, 'Query');
+    if (lengthError) return lengthError;
+
     // Validate depth
     const validatedDepth = Math.min(Math.max(depth, 1), 5);
 
-    // Get workspace folder
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart('Error: No workspace folder is open.')
-      ]);
+    // Get database context
+    const dbContext = getDatabaseContext();
+    if (isErrorResult(dbContext)) {
+      return dbContext;
     }
 
-    // Check if database exists
-    const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
-    if (!fs.existsSync(dbPath)) {
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(
-          'Error: Knowledge graph database not found. Please run "Nanodex: Index Workspace" first to build the knowledge graph.'
-        )
-      ]);
-    }
-
-    let db: Database.Database | undefined;
     try {
-      db = new Database(dbPath, { readonly: true });
-      
-      // Query the graph using existing context selection
-      const contextResult = selectRelevantContext(query, db, validatedDepth, 2500);
-      const formattedContext = formatContext(contextResult);
+      const result = withDatabase(dbContext.dbPath, (db) => {
+        // Check cancellation before query
+        if (token.isCancellationRequested) {
+          return null;
+        }
 
-      if (!formattedContext || formattedContext.trim().length === 0) {
-        return new vscode.LanguageModelToolResult([
-          new vscode.LanguageModelTextPart(
-            `No relevant context found for query: "${query}". The knowledge graph may not contain information related to this query.`
-          )
-        ]);
+        // Query the graph using existing context selection
+        const contextResult = selectRelevantContext(query, db, validatedDepth, 2500);
+        return formatContext(contextResult);
+      });
+
+      if (result === null) {
+        return createErrorResult('Operation cancelled.');
       }
 
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(formattedContext)
-      ]);
+      if (!result || result.trim().length === 0) {
+        return createErrorResult(
+          `No relevant context found for query: "${query}". The knowledge graph may not contain information related to this query.`
+        );
+      }
+
+      return createSuccessResult(result);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Failed to query graph:', error);
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(`Error querying knowledge graph: ${errorMessage}`)
-      ]);
-    } finally {
-      db?.close();
+      return formatToolError('querying knowledge graph', error);
     }
   }
 
   async prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<GraphQueryInput>,
-    token: vscode.CancellationToken
+    _token: vscode.CancellationToken
   ): Promise<vscode.PreparedToolInvocation> {
     const { query, depth = 2 } = options.input;
     const validatedDepth = Math.min(Math.max(depth, 1), 5);

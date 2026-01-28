@@ -206,6 +206,75 @@
           },
           "required": ["filePath"]
         }
+      },
+      {
+        "name": "nanodex-get-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexGetIssue",
+        "displayName": "Get Nanodex Issue Details",
+        "modelDescription": "Get complete details for a specific nanodex issue by ID, including full plan, acceptance criteria, and context. Use this when you need the full issue information rather than the summary from list-issues.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID (e.g., 'ISSUE-001')"
+            }
+          },
+          "required": ["issueId"]
+        }
+      },
+      {
+        "name": "nanodex-create-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexCreateIssue",
+        "displayName": "Create Nanodex Issue",
+        "modelDescription": "Create a new nanodex issue (implementation plan) with a title, goal, optional plan, and acceptance criteria. Use this to plan and track implementation work.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Brief title for the issue"
+            },
+            "goal": {
+              "type": "string",
+              "description": "The goal or objective to accomplish"
+            },
+            "plan": {
+              "type": "string",
+              "description": "Implementation plan (optional)"
+            },
+            "acceptanceCriteria": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of acceptance criteria (optional)"
+            }
+          },
+          "required": ["title", "goal"]
+        }
+      },
+      {
+        "name": "nanodex-update-issue-status",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexUpdateIssueStatus",
+        "displayName": "Update Nanodex Issue Status",
+        "modelDescription": "Update the status of a nanodex issue. Use this to mark issues as in_progress when starting work, or completed when finished.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID to update (e.g., 'ISSUE-001')"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed"],
+              "description": "New status for the issue"
+            }
+          },
+          "required": ["issueId", "status"]
+        }
       }
     ],
     "configuration": {
@@ -314,6 +383,6 @@
   "dependencies": {
     "@vscode/chat-extension-utils": "^0.0.0-alpha.5",
     "better-sqlite3": "^12.4.5",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   }
 }

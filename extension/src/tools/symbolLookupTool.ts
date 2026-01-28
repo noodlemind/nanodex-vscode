@@ -3,22 +3,22 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import Database from 'better-sqlite3';
 import { querySubgraph } from '../core/graph.js';
-
-interface SymbolLookupInput {
-  symbolName: string;
-  includeRelationships?: boolean;
-}
-
-/**
- * Escape SQL LIKE wildcards to prevent injection
- */
-function escapeSqlLike(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
+import { SymbolLookupInput } from '../core/types.js';
+import {
+  getDatabaseContext,
+  isErrorResult,
+  formatToolError,
+  createSuccessResult,
+  createErrorResult,
+  withDatabase,
+  escapeSqlLike,
+  validateInputLength,
+  checkCancellation,
+  parseMetadata,
+  NodeRow,
+  MAX_SYMBOL_NAME_LENGTH
+} from './utils.js';
 
 export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolLookupInput> {
   async invoke(
@@ -27,115 +27,114 @@ export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolL
   ): Promise<vscode.LanguageModelToolResult> {
     const { symbolName, includeRelationships = true } = options.input;
 
-    // Get workspace folder
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart('Error: No workspace folder is open.')
-      ]);
+    // Check cancellation
+    const cancelled = checkCancellation(token);
+    if (cancelled) return cancelled;
+
+    // Validate input length
+    const lengthError = validateInputLength(symbolName, MAX_SYMBOL_NAME_LENGTH, 'Symbol name');
+    if (lengthError) return lengthError;
+
+    // Get database context
+    const dbContext = getDatabaseContext();
+    if (isErrorResult(dbContext)) {
+      return dbContext;
     }
 
-    // Check if database exists
-    const dbPath = path.join(workspaceFolder.uri.fsPath, '.nanodex', 'graph.sqlite');
-    if (!fs.existsSync(dbPath)) {
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(
-          'Error: Knowledge graph database not found. Please run "Nanodex: Index Workspace" first.'
-        )
-      ]);
-    }
-
-    let db: Database.Database | undefined;
     try {
-      db = new Database(dbPath, { readonly: true });
+      const result = withDatabase(dbContext.dbPath, (db) => {
+        // Check cancellation before query
+        if (token.isCancellationRequested) {
+          return null;
+        }
 
-      // Escape SQL LIKE wildcards to prevent injection
-      const escapedSymbolName = escapeSqlLike(symbolName);
+        // Escape SQL LIKE wildcards to prevent injection
+        const escapedSymbolName = escapeSqlLike(symbolName);
 
-      // Search for symbols by name
-      const symbols = db.prepare(
-        `SELECT * FROM nodes WHERE type = 'symbol' AND name LIKE ? ESCAPE '\\'`
-      ).all(`%${escapedSymbolName}%`) as Array<{
-        id: string;
-        type: string;
-        name: string;
-        metadata: string | null;
-      }>;
+        // Search for symbols by name
+        const symbols = db.prepare(
+          `SELECT * FROM nodes WHERE type = 'symbol' AND name LIKE ? ESCAPE '\\' LIMIT 10`
+        ).all(`%${escapedSymbolName}%`) as NodeRow[];
 
-      if (symbols.length === 0) {
-        return new vscode.LanguageModelToolResult([
-          new vscode.LanguageModelTextPart(
-            `No symbol found matching "${symbolName}". The symbol may not exist or has not been indexed yet.`
-          )
-        ]);
-      }
+        if (symbols.length === 0) {
+          return {
+            found: false,
+            message: `No symbol found matching "${symbolName}". The symbol may not exist or has not been indexed yet.`
+          };
+        }
 
-      // Format results
-      const results: string[] = [];
-      results.push(`Found ${symbols.length} symbol(s) matching "${symbolName}":\n`);
+        // Format results
+        const results: string[] = [];
+        results.push(`Found ${symbols.length} symbol(s) matching "${symbolName}":\n`);
 
-      for (const symbol of symbols.slice(0, 10)) {
-        results.push(`\n**${symbol.name}** (${symbol.id})`);
-        
-        // Parse metadata if available
-        if (symbol.metadata) {
-          try {
-            const metadata = JSON.parse(symbol.metadata);
+        for (const symbol of symbols) {
+          // Check cancellation during iteration
+          if (token.isCancellationRequested) {
+            return null;
+          }
+
+          results.push(`\n**${symbol.name}** (${symbol.id})`);
+
+          // Parse metadata if available
+          const metadata = parseMetadata(symbol.metadata);
+          if (metadata) {
             if (metadata.kind) {
               results.push(`- Kind: ${metadata.kind}`);
             }
             if (metadata.filePath) {
               results.push(`- File: ${metadata.filePath}`);
             }
-            if (metadata.range) {
-              results.push(`- Location: Line ${metadata.range.start.line + 1}`);
+            if (metadata.range && typeof metadata.range === 'object') {
+              const range = metadata.range as { start?: { line?: number } };
+              if (range.start?.line !== undefined) {
+                results.push(`- Location: Line ${range.start.line + 1}`);
+              }
             }
-          } catch (error) {
-            // Metadata parsing failed, skip
+          } else if (symbol.metadata) {
+            // Metadata exists but failed to parse
+            results.push(`- Metadata: [parse error]`);
+          }
+
+          // Include relationships if requested
+          if (includeRelationships) {
+            const subgraph = querySubgraph(db, symbol.id, 1);
+
+            if (subgraph.edges.length > 0) {
+              results.push(`- Relationships:`);
+
+              const groupedEdges = new Map<string, number>();
+              for (const edge of subgraph.edges) {
+                const count = groupedEdges.get(edge.relation) || 0;
+                groupedEdges.set(edge.relation, count + 1);
+              }
+
+              for (const [relation, count] of groupedEdges.entries()) {
+                results.push(`  - ${relation}: ${count}`);
+              }
+            }
           }
         }
 
-        // Include relationships if requested
-        if (includeRelationships) {
-          const subgraph = querySubgraph(db, symbol.id, 1);
-          
-          if (subgraph.edges.length > 0) {
-            results.push(`- Relationships:`);
-            
-            const groupedEdges = new Map<string, number>();
-            for (const edge of subgraph.edges) {
-              const count = groupedEdges.get(edge.relation) || 0;
-              groupedEdges.set(edge.relation, count + 1);
-            }
-            
-            for (const [relation, count] of groupedEdges.entries()) {
-              results.push(`  - ${relation}: ${count}`);
-            }
-          }
-        }
+        return { found: true, content: results.join('\n') };
+      });
+
+      if (result === null) {
+        return createErrorResult('Operation cancelled.');
       }
 
-      if (symbols.length > 10) {
-        results.push(`\n... and ${symbols.length - 10} more symbols`);
+      if (!result.found) {
+        return createErrorResult(result.message!);
       }
 
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(results.join('\n'))
-      ]);
+      return createSuccessResult(result.content!);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Failed to lookup symbol:', error);
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(`Error looking up symbol: ${errorMessage}`)
-      ]);
-    } finally {
-      db?.close();
+      return formatToolError('looking up symbol', error);
     }
   }
 
   async prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<SymbolLookupInput>,
-    token: vscode.CancellationToken
+    _token: vscode.CancellationToken
   ): Promise<vscode.PreparedToolInvocation> {
     const { symbolName } = options.input;
     return {

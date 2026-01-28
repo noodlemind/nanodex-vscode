@@ -3,11 +3,16 @@
  */
 
 import * as vscode from 'vscode';
-import { listIssues, Issue } from '../core/issues.js';
-
-interface IssuesToolInput {
-  status?: 'pending' | 'in_progress' | 'completed' | 'all';
-}
+import { listIssues } from '../core/issues.js';
+import { IssuesToolInput } from '../core/types.js';
+import {
+  getWorkspaceContext,
+  isErrorResult,
+  formatToolError,
+  createSuccessResult,
+  createErrorResult,
+  checkCancellation
+} from './utils.js';
 
 export class NanodexIssuesTool implements vscode.LanguageModelTool<IssuesToolInput> {
   async invoke(
@@ -16,41 +21,46 @@ export class NanodexIssuesTool implements vscode.LanguageModelTool<IssuesToolInp
   ): Promise<vscode.LanguageModelToolResult> {
     const { status = 'all' } = options.input;
 
-    // Get workspace folder
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart('Error: No workspace folder is open.')
-      ]);
+    // Check cancellation
+    const cancelled = checkCancellation(token);
+    if (cancelled) return cancelled;
+
+    // Get workspace context
+    const wsContext = getWorkspaceContext();
+    if (isErrorResult(wsContext)) {
+      return wsContext;
     }
 
     try {
       // List all issues
-      const allIssues = await listIssues(workspaceFolder.uri.fsPath);
+      const allIssues = await listIssues(wsContext.workspaceRoot);
+
+      // Check cancellation after async operation
+      if (token.isCancellationRequested) {
+        return createErrorResult('Operation cancelled.');
+      }
 
       // Filter by status if not 'all'
-      const filteredIssues = status === 'all' 
-        ? allIssues 
+      const filteredIssues = status === 'all'
+        ? allIssues
         : allIssues.filter(issue => issue.status === status);
 
       if (filteredIssues.length === 0) {
         const statusMsg = status === 'all' ? '' : ` with status "${status}"`;
-        return new vscode.LanguageModelToolResult([
-          new vscode.LanguageModelTextPart(
-            `No issues found${statusMsg}. You can create a new plan using the "Nanodex: Plan" command.`
-          )
-        ]);
+        return createErrorResult(
+          `No issues found${statusMsg}. You can create a new plan using the "Nanodex: Plan" command (nanodex.plan).`
+        );
       }
 
       // Format issues as markdown
       const results: string[] = [];
-      
+
       // Summary
       if (status === 'all') {
         const pending = allIssues.filter(i => i.status === 'pending').length;
         const inProgress = allIssues.filter(i => i.status === 'in_progress').length;
         const completed = allIssues.filter(i => i.status === 'completed').length;
-        
+
         results.push(`## Issues Summary\n`);
         results.push(`Total: ${allIssues.length} | Pending: ${pending} | In Progress: ${inProgress} | Completed: ${completed}\n`);
       } else {
@@ -63,34 +73,28 @@ export class NanodexIssuesTool implements vscode.LanguageModelTool<IssuesToolInp
         results.push(`- Status: ${issue.status}`);
         results.push(`- Created: ${new Date(issue.createdAt).toLocaleDateString()}`);
         results.push(`- Goal: ${issue.goal}`);
-        
+
         if (issue.acceptanceCriteria && issue.acceptanceCriteria.length > 0) {
           results.push(`- Acceptance Criteria: ${issue.acceptanceCriteria.length} items`);
         }
-        
+
         if (issue.plan) {
-          const planPreview = issue.plan.length > 100 
-            ? issue.plan.substring(0, 100) + '...' 
+          const planPreview = issue.plan.length > 100
+            ? issue.plan.substring(0, 100) + '...'
             : issue.plan;
           results.push(`- Plan: ${planPreview}`);
         }
       }
 
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(results.join('\n'))
-      ]);
+      return createSuccessResult(results.join('\n'));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Failed to list issues:', error);
-      return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(`Error listing issues: ${errorMessage}`)
-      ]);
+      return formatToolError('listing issues', error);
     }
   }
 
   async prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<IssuesToolInput>,
-    token: vscode.CancellationToken
+    _token: vscode.CancellationToken
   ): Promise<vscode.PreparedToolInvocation> {
     const { status = 'all' } = options.input;
     const statusMsg = status === 'all' ? 'all' : status;
