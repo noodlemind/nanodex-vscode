@@ -79,6 +79,62 @@ export interface GraphStats {
 }
 
 /**
+ * Extended graph stats with indexing information
+ */
+export interface GraphStatsOutput extends GraphStats {
+  /** Last time the workspace was indexed */
+  lastIndexed: string | null;
+  /** Whether the workspace has been indexed */
+  isIndexed: boolean;
+}
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+/**
+ * Valid status values for issues
+ */
+export const VALID_ISSUE_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
+export type IssueStatus = typeof VALID_ISSUE_STATUSES[number];
+
+/**
+ * Check if a status string is a valid issue status
+ */
+export function isValidIssueStatus(status: unknown): status is IssueStatus {
+  return typeof status === 'string' &&
+    (VALID_ISSUE_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Valid status values for todos
+ */
+export const VALID_TODO_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled'] as const;
+export type TodoStatus = typeof VALID_TODO_STATUSES[number];
+
+/**
+ * Check if a status string is a valid todo status
+ */
+export function isValidTodoStatus(status: unknown): status is TodoStatus {
+  return typeof status === 'string' &&
+    (VALID_TODO_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Valid priority values
+ */
+export const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+export type Priority = typeof VALID_PRIORITIES[number];
+
+/**
+ * Check if a string is a valid priority
+ */
+export function isValidPriority(priority: unknown): priority is Priority {
+  return typeof priority === 'string' &&
+    (VALID_PRIORITIES as readonly string[]).includes(priority);
+}
+
+/**
  * Model configuration parsed from provider/model-name format
  */
 export interface ModelConfig {
@@ -165,4 +221,27 @@ export interface UpdateIssueStatusInput {
 export interface GetIssueInput {
   /** Issue ID to retrieve */
   issueId: string;
+}
+
+/**
+ * Input for graph stats tool
+ */
+export interface GraphStatsInput {
+  /** Include detailed breakdown by type/relation */
+  detailed?: boolean;
+}
+
+/**
+ * Input for delete issue tool
+ */
+export interface DeleteIssueInput {
+  /** Issue ID to delete */
+  issueId: string;
+}
+
+/**
+ * Input for indexing status tool (no parameters)
+ */
+export interface IndexingStatusInput {
+  // No input required
 }

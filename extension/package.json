@@ -275,6 +275,50 @@
           },
           "required": ["issueId", "status"]
         }
+      },
+      {
+        "name": "nanodex-delete-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexDeleteIssue",
+        "displayName": "Delete Nanodex Issue",
+        "modelDescription": "Delete a nanodex issue permanently. Use this to remove completed or cancelled issues that are no longer needed.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID to delete (e.g., 'ISSUE-001')"
+            }
+          },
+          "required": ["issueId"]
+        }
+      },
+      {
+        "name": "nanodex-graph-stats",
+        "tags": ["nanodex", "codebase", "knowledge-graph"],
+        "toolReferenceName": "nanodexGraphStats",
+        "displayName": "Get Nanodex Graph Statistics",
+        "modelDescription": "Get statistics about the nanodex knowledge graph including node counts, edge counts, and database size. Use this to understand the scope of indexed code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "detailed": {
+              "type": "boolean",
+              "description": "Include detailed breakdown by node type and edge relation"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-indexing-status",
+        "tags": ["nanodex", "indexing", "status"],
+        "toolReferenceName": "nanodexIndexingStatus",
+        "displayName": "Get Nanodex Indexing Status",
+        "modelDescription": "Check the current status of workspace indexing. Use this to know if indexing is in progress, complete, or if an error occurred. Helpful before querying the knowledge graph.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
       }
     ],
     "configuration": {

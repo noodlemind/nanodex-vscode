@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { initializeGraphDatabase } from '../core/graph.js';
 import { indexFile, getSourceFiles } from '../core/indexer.js';
+import { getIndexingState } from '../core/indexingState.js';
 
 export async function indexWorkspaceCommand(): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -55,6 +56,10 @@ export async function indexWorkspaceCommand(): Promise<void> {
 
           progress.report({ message: `Found ${files.length} files` });
 
+          // Start indexing state tracking
+          const indexingState = getIndexingState();
+          indexingState.startIndexing(files.length);
+
           // Index each file
           for (let i = 0; i < files.length; i++) {
             if (token.isCancellationRequested) {
@@ -69,6 +74,9 @@ export async function indexWorkspaceCommand(): Promise<void> {
               increment: (100 / files.length)
             });
 
+            // Update indexing state
+            indexingState.updateProgress(i + 1, relativePath);
+
             try {
               await indexFile(file, workspaceFolder.uri.fsPath, db);
             } catch (error) {
@@ -76,6 +84,8 @@ export async function indexWorkspaceCommand(): Promise<void> {
             }
           }
 
+          // Mark indexing complete
+          indexingState.completeIndexing();
           progress.report({ message: 'Complete!' });
         } finally {
           // Close the database

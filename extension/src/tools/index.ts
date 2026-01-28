@@ -10,6 +10,9 @@ import { NanodexFileContextTool } from './fileContextTool.js';
 import { NanodexGetIssueTool } from './getIssueTool.js';
 import { NanodexCreateIssueTool } from './createIssueTool.js';
 import { NanodexUpdateIssueStatusTool } from './updateIssueStatusTool.js';
+import { NanodexDeleteIssueTool } from './deleteIssueTool.js';
+import { NanodexGraphStatsTool } from './graphStatsTool.js';
+import { NanodexIndexingStatusTool } from './indexingStatusTool.js';
 
 /**
  * Register all nanodex language model tools
@@ -30,9 +33,12 @@ export function registerNanodexTools(context: vscode.ExtensionContext): void {
       vscode.lm.registerTool('nanodex-get-file-context', new NanodexFileContextTool()),
       vscode.lm.registerTool('nanodex-get-issue', new NanodexGetIssueTool()),
       vscode.lm.registerTool('nanodex-create-issue', new NanodexCreateIssueTool()),
-      vscode.lm.registerTool('nanodex-update-issue-status', new NanodexUpdateIssueStatusTool())
+      vscode.lm.registerTool('nanodex-update-issue-status', new NanodexUpdateIssueStatusTool()),
+      vscode.lm.registerTool('nanodex-delete-issue', new NanodexDeleteIssueTool()),
+      vscode.lm.registerTool('nanodex-graph-stats', new NanodexGraphStatsTool()),
+      vscode.lm.registerTool('nanodex-indexing-status', new NanodexIndexingStatusTool())
     );
-    console.log('Registered 7 nanodex language model tools');
+    console.log('Registered 10 nanodex language model tools');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Failed to register language model tools:', errorMessage);
@@ -50,3 +56,6 @@ export { NanodexFileContextTool } from './fileContextTool.js';
 export { NanodexGetIssueTool } from './getIssueTool.js';
 export { NanodexCreateIssueTool } from './createIssueTool.js';
 export { NanodexUpdateIssueStatusTool } from './updateIssueStatusTool.js';
+export { NanodexDeleteIssueTool } from './deleteIssueTool.js';
+export { NanodexGraphStatsTool } from './graphStatsTool.js';
+export { NanodexIndexingStatusTool } from './indexingStatusTool.js';
