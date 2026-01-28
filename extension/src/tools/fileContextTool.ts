@@ -142,21 +142,18 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
           }
         }
 
-        // Get exports (edges from symbols in this file with relation 'exports')
-        const exports = db.prepare(
-          `SELECT DISTINCT n.name
-           FROM edges e
-           JOIN nodes n ON e.source_id = n.id
-           WHERE e.source_id LIKE ? ESCAPE '\\' AND e.relation = 'exports'`
-        ).all(`symbol:${escapedRelativePath}:%`) as Array<{ name: string }>;
+        // Get exported symbols (symbols defined in this file are exports)
+        // Note: The graph stores symbols with IDs like 'symbol:{filePath}:{name}'
+        // All symbols in a file are considered exports since they're extracted from export statements
+        const exportedSymbols = symbols.map(s => s.name);
 
-        if (exports.length > 0) {
-          results.push(`\n### Exports (${exports.length})`);
-          for (const exp of exports.slice(0, 10)) {
-            results.push(`- ${exp.name}`);
+        if (exportedSymbols.length > 0) {
+          results.push(`\n### Exports (${exportedSymbols.length})`);
+          for (const name of exportedSymbols.slice(0, 10)) {
+            results.push(`- ${name}`);
           }
-          if (exports.length > 10) {
-            results.push(`... and ${exports.length - 10} more`);
+          if (exportedSymbols.length > 10) {
+            results.push(`... and ${exportedSymbols.length - 10} more`);
           }
         }
 

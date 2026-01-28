@@ -84,9 +84,14 @@ export async function indexWorkspaceCommand(): Promise<void> {
             }
           }
 
-          // Mark indexing complete
-          indexingState.completeIndexing();
-          progress.report({ message: 'Complete!' });
+          // Mark indexing status based on whether it was cancelled
+          if (token.isCancellationRequested) {
+            indexingState.failIndexing('Indexing cancelled by user');
+            progress.report({ message: 'Cancelled' });
+          } else {
+            indexingState.completeIndexing();
+            progress.report({ message: 'Complete!' });
+          }
         } finally {
           // Close the database
           db.close();
