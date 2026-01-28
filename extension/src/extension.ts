@@ -20,6 +20,7 @@ import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
 import { optimizeDatabase } from './core/batchOps.js';
 import { registerModelChangeHandler } from './core/modelChangeHandler.js';
 import { registerNanodexTools } from './tools/index.js';
+import { closeAllDatabaseConnections } from './core/databasePool.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -292,6 +293,9 @@ export async function deactivate(): Promise<void> {
       }
     }
   }
+
+  // Close all pooled database connections
+  closeAllDatabaseConnections();
 
   // Dispose status bar item
   disposeStatusBarItem();
