@@ -19,6 +19,7 @@ import { indexFile } from './core/indexer.js';
 import { getFileWatcherPattern, supportsIndexing } from './core/languages.js';
 import { optimizeDatabase } from './core/batchOps.js';
 import { registerModelChangeHandler } from './core/modelChangeHandler.js';
+import { registerNanodexTools } from './tools/index.js';
 
 let fileWatcher: vscode.FileSystemWatcher | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -66,6 +67,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // Register chat participant
     console.log('Attempting to register chat participant...');
     registerChatParticipant(context);
+
+    // Register language model tools
+    console.log('Attempting to register language model tools...');
+    registerNanodexTools(context);
 
     // Create status bar item
     console.log('Creating status bar item...');

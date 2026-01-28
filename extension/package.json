@@ -12,8 +12,8 @@
   "icon": "icon.png",
   "license": "Apache-2.0",
   "engines": {
-    "vscode": "^1.105.0",
-    "node": ">=18.0.0"
+    "vscode": "^1.106.0",
+    "node": ">=20.0.0"
   },
   "categories": [
     "AI",
@@ -130,6 +130,84 @@
         ]
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "nanodex-query-graph",
+        "tags": ["nanodex", "codebase", "knowledge-graph"],
+        "toolReferenceName": "nanodexGraph",
+        "displayName": "Query Nanodex Knowledge Graph",
+        "modelDescription": "Query the nanodex knowledge graph for codebase symbols, modules, relationships, and architecture. Use this to understand code structure, find related code, or get context about the codebase.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural language query about the codebase"
+            },
+            "depth": {
+              "type": "number",
+              "description": "Traversal depth for relationships (1-5, default 2)"
+            }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "nanodex-lookup-symbol",
+        "tags": ["nanodex", "symbol", "code"],
+        "toolReferenceName": "nanodexSymbol",
+        "displayName": "Lookup Symbol in Nanodex",
+        "modelDescription": "Look up detailed information about a specific symbol (function, class, variable) including its relationships, callers, and dependencies.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbolName": {
+              "type": "string",
+              "description": "Name of the symbol to look up"
+            },
+            "includeRelationships": {
+              "type": "boolean",
+              "description": "Include symbol relationships (imports, calls, etc.)"
+            }
+          },
+          "required": ["symbolName"]
+        }
+      },
+      {
+        "name": "nanodex-list-issues",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexIssues",
+        "displayName": "List Nanodex Issues",
+        "modelDescription": "List all nanodex issues (implementation plans) in the workspace with their status and details.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed", "all"],
+              "description": "Filter by issue status (default: all)"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-get-file-context",
+        "tags": ["nanodex", "file", "context"],
+        "toolReferenceName": "nanodexFileContext",
+        "displayName": "Get File Context from Nanodex",
+        "modelDescription": "Get knowledge graph context for a specific file including its symbols, imports, exports, and relationships to other modules.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to the file (relative to workspace root)"
+            }
+          },
+          "required": ["filePath"]
+        }
+      }
+    ],
     "configuration": {
       "title": "nanodex",
       "properties": {
@@ -218,23 +296,24 @@
     "package:mac-arm64": "pnpm run build && node scripts/package-vsix.cjs --target darwin-arm64"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.105.0",
+    "@types/vscode": "^1.106.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "^3.2.1",
+    "@vscode/vsce": "^3.2.2",
     "adm-zip": "^0.5.16",
-    "eslint": "^9.0.0",
+    "eslint": "^9.18.0",
     "mocha": "^10.8.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "@vscode/chat-extension-utils": "^0.2.0",
+    "better-sqlite3": "^12.4.5",
     "js-yaml": "^4.1.0"
   }
 }
