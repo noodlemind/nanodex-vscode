@@ -4,6 +4,7 @@
 
 import Database from 'better-sqlite3';
 import { Node, Edge, NodeType, EdgeRelation, SubgraphResult, GraphStats } from './types.js';
+import { getSubgraphCache } from './queryCache.js';
 
 /**
  * Initialize the graph database with schema and indexes
@@ -205,6 +206,42 @@ export function querySubgraph(
     edges,
     depth: maxDepth
   };
+}
+
+/**
+ * Query a subgraph with caching support
+ *
+ * Uses LRU cache with 60-second TTL for repeated queries.
+ * Cache is keyed by (dbPath, rootId, maxDepth).
+ */
+export function querySubgraphCached(
+  db: Database.Database,
+  dbPath: string,
+  rootId: string,
+  maxDepth: number
+): SubgraphResult {
+  const cache = getSubgraphCache();
+
+  // Check cache first
+  const cached = cache.get(dbPath, rootId, maxDepth);
+  if (cached) {
+    return cached;
+  }
+
+  // Execute query
+  const result = querySubgraph(db, rootId, maxDepth);
+
+  // Store in cache
+  cache.set(dbPath, rootId, maxDepth, result);
+
+  return result;
+}
+
+/**
+ * Invalidate cache for a database (call after writes)
+ */
+export function invalidateSubgraphCache(dbPath: string): void {
+  getSubgraphCache().invalidate(dbPath);
 }
 
 /**

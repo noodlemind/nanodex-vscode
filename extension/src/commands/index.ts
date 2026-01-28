@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { initializeGraphDatabase } from '../core/graph.js';
 import { indexFile, getSourceFiles } from '../core/indexer.js';
+import { getIndexingState } from '../core/indexingState.js';
 
 export async function indexWorkspaceCommand(): Promise<void> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -47,6 +48,8 @@ export async function indexWorkspaceCommand(): Promise<void> {
         const dbPath = path.join(nanodexDir, 'graph.sqlite');
         const db = initializeGraphDatabase(dbPath);
 
+        const indexingState = getIndexingState();
+
         try {
           progress.report({ message: 'Finding source files...' });
 
@@ -55,28 +58,49 @@ export async function indexWorkspaceCommand(): Promise<void> {
 
           progress.report({ message: `Found ${files.length} files` });
 
+          // Start indexing state tracking
+          indexingState.startIndexing(files.length);
+
           // Index each file
-          for (let i = 0; i < files.length; i++) {
-            if (token.isCancellationRequested) {
-              break;
+          let indexingError: Error | null = null;
+          try {
+            for (let i = 0; i < files.length; i++) {
+              if (token.isCancellationRequested) {
+                break;
+              }
+
+              const file = files[i];
+              const relativePath = path.relative(workspaceFolder.uri.fsPath, file);
+
+              progress.report({
+                message: `Indexing ${relativePath}`,
+                increment: (100 / files.length)
+              });
+
+              // Update indexing state
+              indexingState.updateProgress(i + 1, relativePath);
+
+              try {
+                await indexFile(file, workspaceFolder.uri.fsPath, db);
+              } catch (error) {
+                console.error(`Failed to index ${file}:`, error);
+              }
             }
-
-            const file = files[i];
-            const relativePath = path.relative(workspaceFolder.uri.fsPath, file);
-
-            progress.report({
-              message: `Indexing ${relativePath}`,
-              increment: (100 / files.length)
-            });
-
-            try {
-              await indexFile(file, workspaceFolder.uri.fsPath, db);
-            } catch (error) {
-              console.error(`Failed to index ${file}:`, error);
-            }
+          } catch (error) {
+            indexingError = error instanceof Error ? error : new Error(String(error));
           }
 
-          progress.report({ message: 'Complete!' });
+          // Mark indexing status based on outcome
+          if (indexingError) {
+            indexingState.failIndexing(indexingError.message);
+            throw indexingError;
+          } else if (token.isCancellationRequested) {
+            indexingState.failIndexing('Indexing cancelled by user');
+            progress.report({ message: 'Cancelled' });
+          } else {
+            indexingState.completeIndexing();
+            progress.report({ message: 'Complete!' });
+          }
         } finally {
           // Close the database
           db.close();

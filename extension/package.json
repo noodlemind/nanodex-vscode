@@ -12,8 +12,8 @@
   "icon": "icon.png",
   "license": "Apache-2.0",
   "engines": {
-    "vscode": "^1.105.0",
-    "node": ">=18.0.0"
+    "vscode": "^1.106.0",
+    "node": ">=20.0.0"
   },
   "categories": [
     "AI",
@@ -130,6 +130,288 @@
         ]
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "nanodex-query-graph",
+        "tags": ["nanodex", "codebase", "knowledge-graph"],
+        "toolReferenceName": "nanodexGraph",
+        "displayName": "Query Nanodex Knowledge Graph",
+        "modelDescription": "Query the nanodex knowledge graph for codebase symbols, modules, relationships, and architecture. Use this to understand code structure, find related code, or get context about the codebase.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural language query about the codebase"
+            },
+            "depth": {
+              "type": "number",
+              "description": "Traversal depth for relationships (1-5, default 2)"
+            }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "nanodex-lookup-symbol",
+        "tags": ["nanodex", "symbol", "code"],
+        "toolReferenceName": "nanodexSymbol",
+        "displayName": "Lookup Symbol in Nanodex",
+        "modelDescription": "Look up detailed information about a specific symbol (function, class, variable) including its relationships, callers, and dependencies.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbolName": {
+              "type": "string",
+              "description": "Name of the symbol to look up"
+            },
+            "includeRelationships": {
+              "type": "boolean",
+              "description": "Include symbol relationships (imports, calls, etc.)"
+            }
+          },
+          "required": ["symbolName"]
+        }
+      },
+      {
+        "name": "nanodex-list-issues",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexIssues",
+        "displayName": "List Nanodex Issues",
+        "modelDescription": "List all nanodex issues (implementation plans) in the workspace with their status and details.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed", "all"],
+              "description": "Filter by issue status (default: all)"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-get-file-context",
+        "tags": ["nanodex", "file", "context"],
+        "toolReferenceName": "nanodexFileContext",
+        "displayName": "Get File Context from Nanodex",
+        "modelDescription": "Get knowledge graph context for a specific file including its symbols, imports, exports, and relationships to other modules.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Path to the file (relative to workspace root)"
+            }
+          },
+          "required": ["filePath"]
+        }
+      },
+      {
+        "name": "nanodex-get-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexGetIssue",
+        "displayName": "Get Nanodex Issue Details",
+        "modelDescription": "Get complete details for a specific nanodex issue by ID, including full plan, acceptance criteria, and context. Use this when you need the full issue information rather than the summary from list-issues.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID (e.g., 'ISSUE-001')"
+            }
+          },
+          "required": ["issueId"]
+        }
+      },
+      {
+        "name": "nanodex-create-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexCreateIssue",
+        "displayName": "Create Nanodex Issue",
+        "modelDescription": "Create a new nanodex issue (implementation plan) with a title, goal, optional plan, and acceptance criteria. Use this to plan and track implementation work.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Brief title for the issue"
+            },
+            "goal": {
+              "type": "string",
+              "description": "The goal or objective to accomplish"
+            },
+            "plan": {
+              "type": "string",
+              "description": "Implementation plan (optional)"
+            },
+            "acceptanceCriteria": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of acceptance criteria (optional)"
+            }
+          },
+          "required": ["title", "goal"]
+        }
+      },
+      {
+        "name": "nanodex-update-issue-status",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexUpdateIssueStatus",
+        "displayName": "Update Nanodex Issue Status",
+        "modelDescription": "Update the status of a nanodex issue. Use this to mark issues as in_progress when starting work, or completed when finished.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID to update (e.g., 'ISSUE-001')"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed"],
+              "description": "New status for the issue"
+            }
+          },
+          "required": ["issueId", "status"]
+        }
+      },
+      {
+        "name": "nanodex-delete-issue",
+        "tags": ["nanodex", "issues", "planning"],
+        "toolReferenceName": "nanodexDeleteIssue",
+        "displayName": "Delete Nanodex Issue",
+        "modelDescription": "Delete a nanodex issue permanently. Use this to remove completed or cancelled issues that are no longer needed.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "issueId": {
+              "type": "string",
+              "description": "The issue ID to delete (e.g., 'ISSUE-001')"
+            }
+          },
+          "required": ["issueId"]
+        }
+      },
+      {
+        "name": "nanodex-graph-stats",
+        "tags": ["nanodex", "codebase", "knowledge-graph"],
+        "toolReferenceName": "nanodexGraphStats",
+        "displayName": "Get Nanodex Graph Statistics",
+        "modelDescription": "Get statistics about the nanodex knowledge graph including node counts, edge counts, and database size. Use this to understand the scope of indexed code.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "detailed": {
+              "type": "boolean",
+              "description": "Include detailed breakdown by node type and edge relation"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-indexing-status",
+        "tags": ["nanodex", "indexing", "status"],
+        "toolReferenceName": "nanodexIndexingStatus",
+        "displayName": "Get Nanodex Indexing Status",
+        "modelDescription": "Check the current status of workspace indexing. Use this to know if indexing is in progress, complete, or if an error occurred. Helpful before querying the knowledge graph.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "nanodex-list-todos",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexListTodos",
+        "displayName": "List Nanodex Todos",
+        "modelDescription": "List all nanodex todos (task items) in the workspace with optional filtering by status or tag.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed", "all"],
+              "description": "Filter by todo status (default: all)"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Filter by tag"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-get-todo",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexGetTodo",
+        "displayName": "Get Nanodex Todo Details",
+        "modelDescription": "Get complete details for a specific nanodex todo by ID, including description, priority, tags, and context.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "The todo ID (e.g., 'TODO-001')"
+            }
+          },
+          "required": ["todoId"]
+        }
+      },
+      {
+        "name": "nanodex-create-todo",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexCreateTodo",
+        "displayName": "Create Nanodex Todo",
+        "modelDescription": "Create a new nanodex todo (task item) with title, description, optional priority, and tags.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Brief title for the todo"
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of what needs to be done"
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "Priority level (optional)"
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Tags for categorization (optional)"
+            }
+          },
+          "required": ["title", "description"]
+        }
+      },
+      {
+        "name": "nanodex-update-todo-status",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexUpdateTodoStatus",
+        "displayName": "Update Nanodex Todo Status",
+        "modelDescription": "Update the status of a nanodex todo. Use this to mark todos as in_progress when starting work, or completed when finished.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "The todo ID to update (e.g., 'TODO-001')"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed"],
+              "description": "New status for the todo"
+            }
+          },
+          "required": ["todoId", "status"]
+        }
+      }
+    ],
     "configuration": {
       "title": "nanodex",
       "properties": {
@@ -218,23 +500,24 @@
     "package:mac-arm64": "pnpm run build && node scripts/package-vsix.cjs --target darwin-arm64"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/glob": "^8.1.0",
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.105.0",
+    "@types/vscode": "^1.106.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-electron": "^2.4.1",
-    "@vscode/vsce": "^3.2.1",
+    "@vscode/vsce": "^3.2.2",
     "adm-zip": "^0.5.16",
-    "eslint": "^9.0.0",
+    "eslint": "^9.18.0",
     "mocha": "^10.8.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.3"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
-    "js-yaml": "^4.1.0"
+    "@vscode/chat-extension-utils": "0.0.0-alpha.5",
+    "better-sqlite3": "^12.4.5",
+    "js-yaml": "^4.1.1"
   }
 }

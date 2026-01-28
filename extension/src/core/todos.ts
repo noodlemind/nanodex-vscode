@@ -8,6 +8,14 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { getNanodexPaths } from './workspace.js';
 
+/**
+ * Ensure todos directory exists
+ */
+async function ensureTodosDir(workspaceRoot: string): Promise<void> {
+  const paths = getNanodexPaths(workspaceRoot);
+  await fsp.mkdir(paths.todos, { recursive: true });
+}
+
 export interface Todo {
   id: string;
   title: string;
@@ -21,17 +29,49 @@ export interface Todo {
 }
 
 /**
- * Get path for a TODO file
+ * Todo ID validation pattern - alphanumeric, underscore, hyphen only
+ */
+const TODO_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MAX_TODO_ID_LENGTH = 50;
+
+/**
+ * Validate Todo ID format to prevent path traversal attacks
+ */
+export function validateTodoId(todoId: string): boolean {
+  return (
+    typeof todoId === 'string' &&
+    todoId.length > 0 &&
+    todoId.length <= MAX_TODO_ID_LENGTH &&
+    TODO_ID_PATTERN.test(todoId) &&
+    !todoId.includes('..')
+  );
+}
+
+/**
+ * Get path for a TODO file with path traversal protection
  */
 export function getTodoPath(workspaceRoot: string, todoId: string): string {
+  if (!validateTodoId(todoId)) {
+    throw new Error(`Invalid TODO ID format: ${todoId}`);
+  }
+
   const paths = getNanodexPaths(workspaceRoot);
-  return path.join(paths.todos, `${todoId}.yml`);
+  const todosDir = path.resolve(paths.todos);
+  const filePath = path.resolve(path.join(todosDir, `${todoId}.yml`));
+
+  // Verify resolved path is within todos directory (path containment check)
+  if (!filePath.startsWith(todosDir + path.sep)) {
+    throw new Error(`Invalid TODO path: path traversal detected`);
+  }
+
+  return filePath;
 }
 
 /**
  * Generate next TODO ID
  */
 async function generateTodoId(workspaceRoot: string): Promise<string> {
+  await ensureTodosDir(workspaceRoot);
   const paths = getNanodexPaths(workspaceRoot);
 
   const maxAttempts = 100;
@@ -134,7 +174,7 @@ export async function loadTodo(
 
   try {
     const content = await fs.readFile(todoPath, 'utf-8');
-    const todo = yaml.load(content) as Todo;
+    const todo = yaml.load(content, { schema: yaml.JSON_SCHEMA }) as Todo;
 
     // Validate required fields
     if (!todo.id || !todo.title || !todo.status) {
