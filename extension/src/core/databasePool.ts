@@ -122,17 +122,18 @@ class DatabasePool {
 
 /**
  * Execute a database operation with pooled connection
+ * Supports both sync and async operations
  */
-export function withPooledDatabase<T>(
+export async function withPooledDatabase<T>(
   dbPath: string,
-  operation: (db: Database.Database) => T,
+  operation: (db: Database.Database) => T | Promise<T>,
   readonly = true
-): T {
+): Promise<T> {
   const pool = DatabasePool.getPool(dbPath, readonly);
   const db = pool.acquire();
 
   try {
-    return operation(db);
+    return await operation(db);
   } finally {
     pool.release();
   }

@@ -32,7 +32,7 @@ export class NanodexGraphStatsTool implements vscode.LanguageModelTool<GraphStat
     }
 
     try {
-      const result = withDatabase(dbContext.dbPath, (db) => {
+      const result = await withDatabase(dbContext.dbPath, (db) => {
         // Check cancellation before query
         if (token.isCancellationRequested) {
           return null;

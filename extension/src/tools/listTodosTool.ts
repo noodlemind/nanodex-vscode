@@ -33,9 +33,15 @@ export class NanodexListTodosTool implements vscode.LanguageModelTool<ListTodosI
 
     try {
       // Build filter
+      const validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
       const filter: { status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'; tag?: string } = {};
       if (status && status !== 'all') {
-        filter.status = status as 'pending' | 'in_progress' | 'completed';
+        if (!validStatuses.includes(status)) {
+          return createErrorResult(
+            `Invalid status "${status}". Valid values are: ${validStatuses.join(', ')}, all`
+          );
+        }
+        filter.status = status as 'pending' | 'in_progress' | 'completed' | 'cancelled';
       }
       if (tag) {
         filter.tag = tag;

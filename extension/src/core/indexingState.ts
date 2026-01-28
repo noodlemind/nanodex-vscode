@@ -77,6 +77,8 @@ class IndexingStateManager {
 
   dispose(): void {
     this.onStatusChangeEmitter.dispose();
+    // Reset singleton so getInstance() recreates a valid instance
+    IndexingStateManager.instance = null as unknown as IndexingStateManager;
   }
 }
 

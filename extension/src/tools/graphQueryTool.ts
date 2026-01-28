@@ -42,7 +42,7 @@ export class NanodexGraphQueryTool implements vscode.LanguageModelTool<GraphQuer
     }
 
     try {
-      const result = withDatabase(dbContext.dbPath, (db) => {
+      const result = await withDatabase(dbContext.dbPath, (db) => {
         // Check cancellation before query
         if (token.isCancellationRequested) {
           return null;

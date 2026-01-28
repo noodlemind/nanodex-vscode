@@ -31,7 +31,7 @@ export class NanodexUpdateTodoStatusTool implements vscode.LanguageModelTool<Upd
     if (idError) return idError;
 
     // Validate status
-    const validStatuses = ['pending', 'in_progress', 'completed'];
+    const validStatuses = ['pending', 'in_progress', 'completed', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return createErrorResult(
         `Invalid status "${status}". Valid values are: ${validStatuses.join(', ')}`
@@ -88,6 +88,9 @@ export class NanodexUpdateTodoStatusTool implements vscode.LanguageModelTool<Upd
       } else if (status === 'pending') {
         results.push(`\n### Todo Pending`);
         results.push(`The todo is ready to be worked on.`);
+      } else if (status === 'cancelled') {
+        results.push(`\n### Todo Cancelled`);
+        results.push(`The todo has been cancelled and will not be worked on.`);
       }
 
       return createSuccessResult(results.join('\n'));

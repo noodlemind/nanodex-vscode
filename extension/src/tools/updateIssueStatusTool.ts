@@ -54,7 +54,7 @@ export class NanodexUpdateIssueStatusTool implements vscode.LanguageModelTool<Up
         );
       }
 
-      // Check cancellation
+      // Check cancellation before update
       if (token.isCancellationRequested) {
         return createErrorResult('Operation cancelled.');
       }
@@ -63,11 +63,6 @@ export class NanodexUpdateIssueStatusTool implements vscode.LanguageModelTool<Up
 
       // Update the status
       await updateIssueStatus(wsContext.workspaceRoot, issueId, status);
-
-      // Check cancellation after update
-      if (token.isCancellationRequested) {
-        return createErrorResult('Operation cancelled.');
-      }
 
       // Format success response
       const results: string[] = [];

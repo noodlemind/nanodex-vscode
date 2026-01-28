@@ -183,11 +183,11 @@ export function checkCancellation(token: vscode.CancellationToken): vscode.Langu
  * Uses connection pooling for reduced overhead (70-80% improvement
  * for repeated queries within the same session).
  */
-export function withDatabase<T>(
+export async function withDatabase<T>(
   dbPath: string,
-  operation: (db: Database.Database) => T,
+  operation: (db: Database.Database) => T | Promise<T>,
   readonly = true
-): T {
+): Promise<T> {
   return withPooledDatabase(dbPath, operation, readonly);
 }
 

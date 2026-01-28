@@ -46,18 +46,13 @@ export class NanodexDeleteIssueTool implements vscode.LanguageModelTool<DeleteIs
         );
       }
 
-      // Check cancellation
+      // Check cancellation before destructive operation
       if (token.isCancellationRequested) {
         return createErrorResult('Operation cancelled.');
       }
 
       // Delete the issue
       await deleteIssue(wsContext.workspaceRoot, issueId);
-
-      // Check cancellation after delete
-      if (token.isCancellationRequested) {
-        return createErrorResult('Operation cancelled.');
-      }
 
       // Format success response
       const results: string[] = [];
