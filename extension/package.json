@@ -312,7 +312,7 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@vscode/chat-extension-utils": "^0.2.0",
+    "@vscode/chat-extension-utils": "^0.0.0-alpha.5",
     "better-sqlite3": "^12.4.5",
     "js-yaml": "^4.1.0"
   }

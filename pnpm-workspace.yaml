@@ -1,2 +1,7 @@
 packages:
-  - 'extension'
+  - extension
+
+onlyBuiltDependencies:
+  - '@vscode/vsce-sign'
+  - better-sqlite3
+  - keytar

@@ -49,7 +49,12 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
 
       // Look for the module node
       const moduleId = `module:${relativePath}`;
-      const moduleNode = db.prepare('SELECT * FROM nodes WHERE id = ?').get(moduleId) as Node | undefined;
+      const moduleNode = db.prepare('SELECT * FROM nodes WHERE id = ?').get(moduleId) as {
+        id: string;
+        type: string;
+        name: string;
+        metadata: string | null;
+      } | undefined;
 
       if (!moduleNode) {
         return new vscode.LanguageModelToolResult([
@@ -80,7 +85,12 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
       // Get all symbols in this file
       const symbols = db.prepare(
         `SELECT * FROM nodes WHERE type = 'symbol' AND id LIKE ?`
-      ).all(`symbol:${relativePath}:%`) as Node[];
+      ).all(`symbol:${relativePath}:%`) as Array<{
+        id: string;
+        type: string;
+        name: string;
+        metadata: string | null;
+      }>;
 
       if (symbols.length > 0) {
         results.push(`\n### Symbols (${symbols.length})`);

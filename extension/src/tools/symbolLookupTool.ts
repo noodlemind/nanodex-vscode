@@ -46,7 +46,12 @@ export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolL
       // Search for symbols by name
       const symbols = db.prepare(
         `SELECT * FROM nodes WHERE type = 'symbol' AND name LIKE ?`
-      ).all(`%${symbolName}%`) as Node[];
+      ).all(`%${symbolName}%`) as Array<{
+        id: string;
+        type: string;
+        name: string;
+        metadata: string | null;
+      }>;
 
       if (symbols.length === 0) {
         return new vscode.LanguageModelToolResult([
