@@ -245,3 +245,49 @@ export interface DeleteIssueInput {
 export interface IndexingStatusInput {
   // No input required
 }
+
+// ============================================================================
+// Todo Tool Input Types
+// ============================================================================
+
+/**
+ * Input for listing todos
+ */
+export interface ListTodosInput {
+  /** Filter by status */
+  status?: 'pending' | 'in_progress' | 'completed' | 'all';
+  /** Filter by tag */
+  tag?: string;
+}
+
+/**
+ * Input for getting a single todo
+ */
+export interface GetTodoInput {
+  /** Todo ID to retrieve */
+  todoId: string;
+}
+
+/**
+ * Input for creating a new todo
+ */
+export interface CreateTodoInput {
+  /** Todo title */
+  title: string;
+  /** Todo description */
+  description: string;
+  /** Priority level */
+  priority?: 'low' | 'medium' | 'high';
+  /** Tags for categorization */
+  tags?: string[];
+}
+
+/**
+ * Input for updating todo status
+ */
+export interface UpdateTodoStatusInput {
+  /** Todo ID to update */
+  todoId: string;
+  /** New status */
+  status: 'pending' | 'in_progress' | 'completed';
+}

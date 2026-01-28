@@ -319,6 +319,97 @@
           "type": "object",
           "properties": {}
         }
+      },
+      {
+        "name": "nanodex-list-todos",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexListTodos",
+        "displayName": "List Nanodex Todos",
+        "modelDescription": "List all nanodex todos (task items) in the workspace with optional filtering by status or tag.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed", "all"],
+              "description": "Filter by todo status (default: all)"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Filter by tag"
+            }
+          }
+        }
+      },
+      {
+        "name": "nanodex-get-todo",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexGetTodo",
+        "displayName": "Get Nanodex Todo Details",
+        "modelDescription": "Get complete details for a specific nanodex todo by ID, including description, priority, tags, and context.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "The todo ID (e.g., 'TODO-001')"
+            }
+          },
+          "required": ["todoId"]
+        }
+      },
+      {
+        "name": "nanodex-create-todo",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexCreateTodo",
+        "displayName": "Create Nanodex Todo",
+        "modelDescription": "Create a new nanodex todo (task item) with title, description, optional priority, and tags.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Brief title for the todo"
+            },
+            "description": {
+              "type": "string",
+              "description": "Detailed description of what needs to be done"
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "Priority level (optional)"
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Tags for categorization (optional)"
+            }
+          },
+          "required": ["title", "description"]
+        }
+      },
+      {
+        "name": "nanodex-update-todo-status",
+        "tags": ["nanodex", "todos", "tasks"],
+        "toolReferenceName": "nanodexUpdateTodoStatus",
+        "displayName": "Update Nanodex Todo Status",
+        "modelDescription": "Update the status of a nanodex todo. Use this to mark todos as in_progress when starting work, or completed when finished.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "todoId": {
+              "type": "string",
+              "description": "The todo ID to update (e.g., 'TODO-001')"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "in_progress", "completed"],
+              "description": "New status for the todo"
+            }
+          },
+          "required": ["todoId", "status"]
+        }
       }
     ],
     "configuration": {

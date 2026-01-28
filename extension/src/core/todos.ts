@@ -8,6 +8,14 @@ import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { getNanodexPaths } from './workspace.js';
 
+/**
+ * Ensure todos directory exists
+ */
+async function ensureTodosDir(workspaceRoot: string): Promise<void> {
+  const paths = getNanodexPaths(workspaceRoot);
+  await fsp.mkdir(paths.todos, { recursive: true });
+}
+
 export interface Todo {
   id: string;
   title: string;
@@ -63,6 +71,7 @@ export function getTodoPath(workspaceRoot: string, todoId: string): string {
  * Generate next TODO ID
  */
 async function generateTodoId(workspaceRoot: string): Promise<string> {
+  await ensureTodosDir(workspaceRoot);
   const paths = getNanodexPaths(workspaceRoot);
 
   const maxAttempts = 100;
