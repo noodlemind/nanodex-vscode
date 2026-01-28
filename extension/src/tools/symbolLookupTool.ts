@@ -7,11 +7,17 @@ import * as path from 'path';
 import * as fs from 'fs';
 import Database from 'better-sqlite3';
 import { querySubgraph } from '../core/graph.js';
-import { Node } from '../core/types.js';
 
 interface SymbolLookupInput {
   symbolName: string;
   includeRelationships?: boolean;
+}
+
+/**
+ * Escape SQL LIKE wildcards to prevent injection
+ */
+function escapeSqlLike(value: string): string {
+  return value.replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolLookupInput> {
@@ -43,10 +49,13 @@ export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolL
     try {
       db = new Database(dbPath, { readonly: true });
 
+      // Escape SQL LIKE wildcards to prevent injection
+      const escapedSymbolName = escapeSqlLike(symbolName);
+
       // Search for symbols by name
       const symbols = db.prepare(
-        `SELECT * FROM nodes WHERE type = 'symbol' AND name LIKE ?`
-      ).all(`%${symbolName}%`) as Array<{
+        `SELECT * FROM nodes WHERE type = 'symbol' AND name LIKE ? ESCAPE '\\'`
+      ).all(`%${escapedSymbolName}%`) as Array<{
         id: string;
         type: string;
         name: string;

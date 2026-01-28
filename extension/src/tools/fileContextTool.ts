@@ -6,10 +6,16 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import Database from 'better-sqlite3';
-import { Node } from '../core/types.js';
 
 interface FileContextInput {
   filePath: string;
+}
+
+/**
+ * Escape SQL LIKE wildcards to prevent injection
+ */
+function escapeSqlLike(value: string): string {
+  return value.replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 export class NanodexFileContextTool implements vscode.LanguageModelTool<FileContextInput> {
@@ -47,8 +53,21 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
         relativePath = path.relative(workspaceFolder.uri.fsPath, filePath);
       }
 
+      // Validate that the path is within the workspace (prevent path traversal)
+      const normalizedPath = path.normalize(relativePath);
+      if (normalizedPath.startsWith('..') || path.isAbsolute(normalizedPath)) {
+        return new vscode.LanguageModelToolResult([
+          new vscode.LanguageModelTextPart(
+            `Error: File path "${filePath}" is outside the workspace.`
+          )
+        ]);
+      }
+
+      // Escape SQL LIKE wildcards in the relative path
+      const escapedRelativePath = escapeSqlLike(normalizedPath);
+
       // Look for the module node
-      const moduleId = `module:${relativePath}`;
+      const moduleId = `module:${normalizedPath}`;
       const moduleNode = db.prepare('SELECT * FROM nodes WHERE id = ?').get(moduleId) as {
         id: string;
         type: string;
@@ -65,7 +84,7 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
       }
 
       const results: string[] = [];
-      results.push(`## File Context: ${relativePath}\n`);
+      results.push(`## File Context: ${normalizedPath}\n`);
 
       // Get module metadata
       if (moduleNode.metadata) {
@@ -84,8 +103,8 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
 
       // Get all symbols in this file
       const symbols = db.prepare(
-        `SELECT * FROM nodes WHERE type = 'symbol' AND id LIKE ?`
-      ).all(`symbol:${relativePath}:%`) as Array<{
+        `SELECT * FROM nodes WHERE type = 'symbol' AND id LIKE ? ESCAPE '\\'`
+      ).all(`symbol:${escapedRelativePath}:%`) as Array<{
         id: string;
         type: string;
         name: string;
@@ -141,8 +160,8 @@ export class NanodexFileContextTool implements vscode.LanguageModelTool<FileCont
         `SELECT DISTINCT n.name 
          FROM edges e 
          JOIN nodes n ON e.source_id = n.id 
-         WHERE e.source_id LIKE ? AND e.relation = 'exports'`
-      ).all(`symbol:${relativePath}:%`) as Array<{ name: string }>;
+         WHERE e.source_id LIKE ? ESCAPE '\\' AND e.relation = 'exports'`
+      ).all(`symbol:${escapedRelativePath}:%`) as Array<{ name: string }>;
 
       if (exports.length > 0) {
         results.push(`\n### Exports (${exports.length})`);

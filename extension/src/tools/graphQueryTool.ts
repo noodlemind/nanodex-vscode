@@ -76,8 +76,9 @@ export class NanodexGraphQueryTool implements vscode.LanguageModelTool<GraphQuer
     token: vscode.CancellationToken
   ): Promise<vscode.PreparedToolInvocation> {
     const { query, depth = 2 } = options.input;
+    const validatedDepth = Math.min(Math.max(depth, 1), 5);
     return {
-      invocationMessage: `Querying nanodex knowledge graph for: "${query}" (depth: ${depth})`
+      invocationMessage: `Querying nanodex knowledge graph for: "${query}" (depth: ${validatedDepth})`
     };
   }
 }
