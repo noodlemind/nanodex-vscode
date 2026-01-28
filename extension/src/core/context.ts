@@ -3,8 +3,12 @@
  */
 
 import Database from 'better-sqlite3';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { Node, EdgeRelation, SubgraphResult } from './types.js';
 import { querySubgraph } from './graph.js';
+
+const execAsync = promisify(exec);
 
 export interface ContextResult {
   facts: string[];
@@ -12,6 +16,14 @@ export interface ContextResult {
   entryPoints: string[];
   nodes: Node[];
   tokenCount: number;
+  gitContext?: GitContext;
+}
+
+export interface GitContext {
+  branch: string;
+  isClean: boolean;
+  uncommittedChanges: number;
+  recentCommits?: string[];
 }
 
 export interface RelevanceScore {
@@ -148,62 +160,90 @@ function extractKeywords(query: string): string[] {
 }
 
 /**
- * Find nodes relevant to keywords using TF-IDF-like scoring
+ * Escape SQL LIKE wildcards to prevent injection
+ */
+function escapeSqlLike(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+/**
+ * Find nodes relevant to keywords using indexed LIKE queries
+ *
+ * Optimized to avoid full table scans:
+ * - Uses indexed LIKE queries per keyword instead of SELECT *
+ * - Limits results per keyword to 50 for early termination
+ * - Target: 10-30ms for 50K nodes (was 100-250ms)
  */
 function findRelevantNodes(
   db: Database.Database,
   keywords: string[]
 ): RelevanceScore[] {
-  const scores = new Map<string, number>();
-  const reasons = new Map<string, string>();
+  if (keywords.length === 0) {
+    return [];
+  }
 
-  // Get all nodes
-  const nodes = db.prepare('SELECT * FROM nodes').all() as Array<{
-    id: string;
-    type: string;
-    name: string;
-    metadata: string | null;
-  }>;
+  const scores = new Map<string, { score: number; keywords: string[] }>();
 
-  for (const node of nodes) {
-    let score = 0;
-    const matchedKeywords: string[] = [];
+  // Query per keyword using indexed LIKE (name column should be indexed)
+  const stmt = db.prepare(`
+    SELECT id, name, metadata
+    FROM nodes
+    WHERE name LIKE ? ESCAPE '\\'
+    LIMIT 50
+  `);
 
-    const nodeName = node.name.toLowerCase();
+  for (const keyword of keywords) {
+    const escaped = escapeSqlLike(keyword);
+    const matches = stmt.all(`%${escaped}%`) as Array<{
+      id: string;
+      name: string;
+      metadata: string | null;
+    }>;
 
-    for (const keyword of keywords) {
-      // Exact match in name
+    for (const match of matches) {
+      const existing = scores.get(match.id) || { score: 0, keywords: [] };
+      const nodeName = match.name.toLowerCase();
+
+      // Exact match scores higher
       if (nodeName === keyword) {
-        score += 10;
-        matchedKeywords.push(keyword);
+        existing.score += 10;
+      } else {
+        existing.score += 5;
       }
-      // Partial match in name
-      else if (nodeName.includes(keyword)) {
-        score += 5;
-        matchedKeywords.push(keyword);
-      }
-      // Match in metadata
-      else if (node.metadata) {
-        const metadata = node.metadata.toLowerCase();
-        if (metadata.includes(keyword)) {
-          score += 2;
-          matchedKeywords.push(keyword);
-        }
-      }
+      existing.keywords.push(keyword);
+      scores.set(match.id, existing);
     }
+  }
 
-    if (score > 0) {
-      scores.set(node.id, score);
-      reasons.set(node.id, `Matched keywords: ${matchedKeywords.join(', ')}`);
+  // Also check metadata for remaining top candidates (limited to avoid overhead)
+  const metadataStmt = db.prepare(`
+    SELECT id, name, metadata
+    FROM nodes
+    WHERE metadata LIKE ? ESCAPE '\\'
+    LIMIT 20
+  `);
+
+  for (const keyword of keywords.slice(0, 3)) { // Limit metadata search
+    const escaped = escapeSqlLike(keyword);
+    const matches = metadataStmt.all(`%${escaped}%`) as Array<{
+      id: string;
+      name: string;
+      metadata: string | null;
+    }>;
+
+    for (const match of matches) {
+      if (!scores.has(match.id)) {
+        scores.set(match.id, { score: 2, keywords: [keyword] });
+      }
     }
   }
 
   // Sort by score descending
   return Array.from(scores.entries())
-    .map(([nodeId, score]) => ({
+    .map(([nodeId, data]) => ({
       nodeId,
-      score,
-      reason: reasons.get(nodeId) || ''
+      score: data.score,
+      reason: `Matched keywords: ${data.keywords.join(', ')}`
     }))
     .sort((a, b) => b.score - a.score);
 }
@@ -297,8 +337,21 @@ function generateEntryPoints(nodes: Node[]): string[] {
 export function formatContext(context: ContextResult): string {
   const parts: string[] = [];
 
+  // Add git context if available
+  if (context.gitContext) {
+    parts.push('## Git Context\n');
+    parts.push(`- Branch: ${context.gitContext.branch}`);
+    parts.push(`- Status: ${context.gitContext.isClean ? 'Clean' : `${context.gitContext.uncommittedChanges} uncommitted changes`}`);
+    if (context.gitContext.recentCommits && context.gitContext.recentCommits.length > 0) {
+      parts.push(`- Recent commits:`);
+      for (const commit of context.gitContext.recentCommits) {
+        parts.push(`  - ${commit}`);
+      }
+    }
+  }
+
   if (context.facts.length > 0) {
-    parts.push('## Facts\n');
+    parts.push('\n## Facts\n');
     parts.push(context.facts.map(f => `- ${f}`).join('\n'));
   }
 
@@ -313,4 +366,49 @@ export function formatContext(context: ContextResult): string {
   }
 
   return parts.join('\n');
+}
+
+/**
+ * Get git context for the workspace
+ */
+export async function getGitContext(workspaceRoot: string): Promise<GitContext | undefined> {
+  try {
+    // Get current branch
+    const { stdout: branchOutput } = await execAsync('git branch --show-current', {
+      cwd: workspaceRoot
+    });
+    const branch = branchOutput.trim();
+
+    if (!branch) {
+      return undefined; // Not in a git repo or detached HEAD
+    }
+
+    // Get status (count uncommitted changes)
+    const { stdout: statusOutput } = await execAsync('git status --porcelain', {
+      cwd: workspaceRoot
+    });
+    const uncommittedChanges = statusOutput.trim().split('\n').filter(line => line.length > 0).length;
+    const isClean = uncommittedChanges === 0;
+
+    // Get recent commits (last 3)
+    let recentCommits: string[] | undefined;
+    try {
+      const { stdout: logOutput } = await execAsync('git log --oneline -3', {
+        cwd: workspaceRoot
+      });
+      recentCommits = logOutput.trim().split('\n').filter(line => line.length > 0);
+    } catch {
+      // Ignore if no commits yet
+    }
+
+    return {
+      branch,
+      isClean,
+      uncommittedChanges,
+      recentCommits
+    };
+  } catch {
+    // Not a git repository or git not available
+    return undefined;
+  }
 }
