@@ -17,7 +17,7 @@ interface SymbolLookupInput {
  * Escape SQL LIKE wildcards to prevent injection
  */
 function escapeSqlLike(value: string): string {
-  return value.replace(/%/g, '\\%').replace(/_/g, '\\_');
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 export class NanodexSymbolLookupTool implements vscode.LanguageModelTool<SymbolLookupInput> {
